@@ -15,4 +15,8 @@ router.delete('/:id', userController.deleteUser);        // Desactivar
 // Auxiliares
 router.get('/roles', userController.getRoles);
 
+
+// Ruta para agregar o actualizar los multi-roles
+router.post('/multi-roles', userController.agregarMultiRol);
+
 module.exports = router;

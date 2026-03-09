@@ -6,9 +6,13 @@ const jwt = require('jsonwebtoken');
 const login = async (req, res) => {
     const { usuario, password } = req.body;
     try {
-        // Incluimos u.centro_salud_id en el SELECT
+        // Hacemos un LEFT JOIN para traer roles_medico si existen
         const [rows] = await db.query(
-            'SELECT u.*, r.rol FROM users u JOIN roles r ON u.rol_id = r.id WHERE u.usuario = ?',
+            `SELECT u.*, r.rol, mrm.roles_medico 
+             FROM users u 
+             JOIN roles r ON u.rol_id = r.id 
+             LEFT JOIN multi_roles_medicos mrm ON u.id = mrm.usuario_id 
+             WHERE u.usuario = ?`,
             [usuario]
         );
 
@@ -23,15 +27,21 @@ const login = async (req, res) => {
         const [pacienteRows] = await db.query('SELECT id FROM pacientes WHERE paciente_id = ? LIMIT 1', [user.id]);
         const idPaciente = pacienteRows.length > 0 ? pacienteRows[0].id : null;
 
+        // Validamos y parseamos los roles del médico (por si la BD lo devuelve como texto)
+        let multiRolesArray = [];
+        if (user.rol_id === 4 && user.roles_medico) {
+            multiRolesArray = typeof user.roles_medico === 'string' ? JSON.parse(user.roles_medico) : user.roles_medico;
+        }
+
         // Generar Token
-        // Agregamos centro_salud_id al payload para que el middleware pueda usarlo si es necesario
         const token = jwt.sign(
             {
                 id: user.id,
                 rol: user.rol,
                 rol_id: user.rol_id,
                 idPaciente: idPaciente,
-                centro_salud_id: user.centro_salud_id // <--- NUEVO
+                centro_salud_id: user.centro_salud_id,
+                multi_roles: multiRolesArray // <--- Agregado al token
             },
             process.env.JWT_SECRET || 'secret_key_123',
             { expiresIn: '8h' }
@@ -48,22 +58,22 @@ const login = async (req, res) => {
                 rol: user.rol,
                 rol_id: user.rol_id,
                 idPaciente: idPaciente,
-                centro_salud_id: user.centro_salud_id // <--- NUEVO
+                centro_salud_id: user.centro_salud_id,
+                multi_roles: multiRolesArray // <--- NUEVO: Valor de los multi-roles
             }
         });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: error.message });
     }
 };
 
 // 2. CRUD: Crear Usuario
 const createUser = async (req, res) => {
-    // Agregamos centro_salud_id que viene del body
     const { usuario, password, nombres, rol_id, centro_salud_id } = req.body;
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Insertamos el nuevo campo (puede ser null si el rol no lo requiere)
         const [result] = await db.query(
             'INSERT INTO users (usuario, password, nombres, rol_id, centro_salud_id) VALUES (?, ?, ?, ?, ?)',
             [usuario, hashedPassword, nombres, rol_id, centro_salud_id || null]
@@ -77,14 +87,37 @@ const createUser = async (req, res) => {
 
 // 3. Obtener Usuarios
 const getUsers = async (req, res) => {
-    // Incluimos centro_salud_id en la lista para poder verlo en la tabla del admin
-    const [rows] = await db.query(`
-        SELECT u.id, u.usuario, u.nombres, u.centro_salud_id, r.rol, lcs.descripcion as centro_salud_nombre, u.estatus as estatus_usuario 
-        FROM users u 
-        LEFT JOIN roles r ON u.rol_id = r.id
-        LEFT JOIN lista_centro_salud lcs ON u.centro_salud_id = lcs.id
-    `);
-    res.json(rows);
+    try {
+        // Hacemos el LEFT JOIN también aquí para que el frontend pueda ver los roles al editar
+        const [rows] = await db.query(`
+            SELECT 
+                u.id, 
+                u.usuario, 
+                u.nombres, 
+                u.rol_id, 
+                u.centro_salud_id, 
+                r.rol, 
+                lcs.descripcion as centro_salud_nombre, 
+                u.estatus as estatus_usuario,
+                mrm.roles_medico 
+            FROM users u 
+            LEFT JOIN roles r ON u.rol_id = r.id
+            LEFT JOIN lista_centro_salud lcs ON u.centro_salud_id = lcs.id
+            LEFT JOIN multi_roles_medicos mrm ON u.id = mrm.usuario_id
+        `);
+
+        // Mapeamos los resultados para asegurar que roles_medico sea siempre un array válido
+        const formatRows = rows.map(user => ({
+            ...user,
+            roles_medico: user.roles_medico 
+                ? (typeof user.roles_medico === 'string' ? JSON.parse(user.roles_medico) : user.roles_medico) 
+                : []
+        }));
+
+        res.json(formatRows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 };
 
 // 4. Actualizar Información (Nombre y Rol)
@@ -132,4 +165,34 @@ const getRoles = async (req, res) => {
     res.json(rows);
 };
 
-module.exports = { login, createUser, getUsers, updateUser, updatePassword, deleteUser, getRoles };
+// 8. Multi-roles
+const agregarMultiRol = async (req, res) => {
+    const { usuario_id, roles_medico } = req.body;
+
+    if (!usuario_id || !roles_medico) {
+        return res.status(400).json({ message: "Faltan datos requeridos" });
+    }
+
+    try {
+        const query = `
+            INSERT INTO multi_roles_medicos (usuario_id, roles_medico) 
+            VALUES (?, ?) 
+            ON DUPLICATE KEY UPDATE roles_medico = VALUES(roles_medico)
+        `;
+
+        const [result] = await db.execute(query, [
+            usuario_id, 
+            JSON.stringify(roles_medico)
+        ]);
+
+        res.status(201).json({
+            message: "Roles actualizados correctamente",
+            id: result.insertId
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error al guardar los roles" });
+    }
+};
+
+module.exports = { login, createUser, getUsers, updateUser, updatePassword, deleteUser, getRoles, agregarMultiRol };

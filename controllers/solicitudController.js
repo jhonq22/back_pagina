@@ -53,7 +53,7 @@ const getSolicitudByPacienteId = async (req, res) => {
             ORDER BY s.fecha_creacion DESC LIMIT 1`;
 
         const [rows] = await db.query(sql, [paciente_id]);
-        if (rows.length === 0) return res.status(404).json({ message: 'No se encontró solicitud para este paciente' });
+        if (rows.length === 0) return res.status(404).json({ message: 'No se encontró solicitud para este paciente ID' });
         res.json(rows[0]);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -78,7 +78,7 @@ const getSolicitudById = async (req, res) => {
             WHERE s.id = ?`;
 
         const [rows] = await db.query(sql, [id]);
-        if (rows.length === 0) return res.status(404).json({ message: 'No se encontró solicitud para este paciente' });
+        if (rows.length === 0) return res.status(404).json({ message: 'No se encontró solicitud para este paciente Solicitu id' });
         res.json(rows[0]);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -128,7 +128,7 @@ const getSolicitudesPendientesPorCentro = async (req, res) => {
         const sql = `
             SELECT 
                 s.*, 
-                p.primer_nombre, p.primer_apellido, p.cedula, p.correo, p.telefono_celular,
+                p.primer_nombre, p.primer_apellido, p.cedula, p.correo, p.telefono_celular, p.codificacion_buen_gobierno,
                 s.tipo_marca_paso_id, s.observacion_general,
                 es.nombre_estatus AS estatus_nombre,
                 DATE_FORMAT(s.fecha_cita, '%e de %M de %Y') AS fecha_solicitud
@@ -170,7 +170,7 @@ const getSolicitudesEstatusDinamico = async (req, res) => {
         const sql = `
             SELECT 
                 s.*, 
-                p.primer_nombre, p.primer_apellido, p.cedula, p.correo, p.telefono_celular,
+                p.primer_nombre, p.primer_apellido, p.cedula, p.correo, p.telefono_celular, p.codificacion_buen_gobierno,
                 s.tipo_marca_paso_id,
                 es.nombre_estatus AS estatus_nombre,
                 rm.primerNombre AS medico_nombre,
@@ -615,6 +615,46 @@ const PacientesConSolicitudes = async (req, res) => {
 
 
 
+const PacientesConSolicitudesActualizados = async (req, res) => {
+    try {
+        const sql = `
+            SELECT
+                p.id as paciente_id, 
+                p.primer_nombre, 
+                p.primer_apellido, 
+                p.cedula, 
+                p.edad, 
+                p.codificacion_buen_gobierno, 
+                p.correo, 
+                p.telefono_celular, 
+                p.telefono_local,
+                s.tipo_marca_paso_id, 
+                DATE_FORMAT(s.fecha_cita, '%d/%m/%y') AS fecha_cita, -- Formato DD/MM/YY
+                es.nombre_estatus AS estatus_nombre,
+                cs.descripcion AS centro_salud_nombre
+            FROM registrar_solicitud_pacientes s
+            LEFT JOIN pacientes p ON s.paciente_id = p.id
+            LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
+            LEFT JOIN lista_centro_salud cs ON s.centro_salud_id = cs.id
+            WHERE p.actualizado = 1
+            ORDER BY s.fecha_creacion DESC
+        `;
+
+        // Ejecutamos la consulta
+        const [rows] = await db.query(sql);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'No se encontro pacientes' });
+        }
+
+        // Retornamos el array completo
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+
 module.exports = {
     createSolicitud,
     getSolicitudes,
@@ -633,5 +673,6 @@ module.exports = {
     updateTipoOperacionYMarcaPaso,
     getSolicitudesPendientesPorCentro,
     PacientesConSolicitudes,
-    getSolicitudesEstatusDinamico
+    getSolicitudesEstatusDinamico,
+    PacientesConSolicitudesActualizados
 };

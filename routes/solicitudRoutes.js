@@ -12,6 +12,7 @@ const { subirExcelTemporal, obtenerPacientesTemporales, obtenerEstadoHospital } 
 const { confirmarCitas, eliminarTemporales } = require('../controllers/migrar_citas/confirmacionController');
 
 router.get('/pacientes-con-solicitudes', solicitudController.PacientesConSolicitudes);
+router.get('/pacientes-con-solicitudes-actualizados', solicitudController.PacientesConSolicitudesActualizados);
 router.get('/ver-temporales', obtenerPacientesTemporales);
 
 // Rutas de Listado

@@ -28,13 +28,12 @@ const createPaciente = async (req, res) => {
         cedula, es_cedulado, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido,
         sexo, fecha_nacimiento, estado_civil, estado_id, municipio_id, parroquia_id,
         telefono_local, telefono_celular, correo, estatus,
-        // Nuevos campos
         edad, pais_id, lugar_nacimiento, nivel_estudio_id, direccion_actual,
         institucion_referencia, otra_institucion, religion, etnia_indigena_id,
         bilingue, telefono_emergencia, correo_secundario, instagram, facebook,
         twitter, otras_redes, codificacion_buen_gobierno,
-        // Campo agregado
-        paciente_id
+        paciente_id, actualizado,
+        profesion // <--- Nuevo campo
     } = req.body;
 
     try {
@@ -46,8 +45,9 @@ const createPaciente = async (req, res) => {
             edad, pais_id, lugar_nacimiento, nivel_estudio_id, direccion_actual,
             institucion_referencia, otra_institucion, religion, etnia_indigena_id,
             bilingue, telefono_emergencia, correo_secundario, instagram, facebook,
-            twitter, otras_redes, codificacion_buen_gobierno, paciente_id) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            twitter, otras_redes, codificacion_buen_gobierno, paciente_id, actualizado, 
+            profesion) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         const values = [
@@ -57,7 +57,9 @@ const createPaciente = async (req, res) => {
             edad, pais_id, lugar_nacimiento, nivel_estudio_id, direccion_actual,
             institucion_referencia, otra_institucion, religion, etnia_indigena_id,
             bilingue, telefono_emergencia, correo_secundario, instagram, facebook,
-            twitter, otras_redes, codificacion_buen_gobierno, paciente_id || null
+            twitter, otras_redes, codificacion_buen_gobierno, paciente_id || null,
+            actualizado || 0,
+            profesion || null // <--- Valor para profesion
         ];
 
         const [result] = await db.query(sql, values);
@@ -67,25 +69,23 @@ const createPaciente = async (req, res) => {
     }
 };
 
-// 4. Actualizar un paciente
+// 4. Actualizar un paciente (Se mantiene dinámico, aceptará 'profesion' automáticamente)
 const updatePaciente = async (req, res) => {
     const { id } = req.params;
-    const camposAActualizar = req.body;
+    const camposAActualizar = { ...req.body };
 
-    // 1. Validar que no venga vacío
     if (Object.keys(camposAActualizar).length === 0) {
         return res.status(400).json({ message: 'No hay campos para actualizar' });
     }
 
+    camposAActualizar.actualizado = 1;
+
     try {
-        // 2. Construir la cadena de SET dinámicamente
-        // Ejemplo: "primer_nombre=?, sexo=?, estado_id=?"
         const keys = Object.keys(camposAActualizar);
         const setString = keys.map(key => `${key}=?`).join(', ');
 
-        // 3. Preparar los valores en el mismo orden
         const values = Object.values(camposAActualizar);
-        values.push(id); // El ID para el WHERE al final
+        values.push(id);
 
         const sql = `UPDATE pacientes SET ${setString} WHERE id = ?`;
 
@@ -93,7 +93,7 @@ const updatePaciente = async (req, res) => {
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Paciente no encontrado' });
-        }
+        } 
 
         res.json({ message: 'Paciente actualizado exitosamente' });
     } catch (error) {
@@ -113,4 +113,43 @@ const deletePaciente = async (req, res) => {
     }
 };
 
-module.exports = { getAllPacientes, getPacienteById, createPaciente, updatePaciente, deletePaciente };
+
+const verInformacionPacientePorID = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const sql = `
+            SELECT 
+                p.*,
+                e.estado AS estado_nombre,
+                m.municipio AS municipio_nombre,
+                pa.parroquia AS parroquia_nombre,
+                pais.nombre AS pais_nombre,
+                ne.estudio AS nivel_estudio_nombre,
+                et.etnia AS etnia_indigena_nombre
+            FROM pacientes p
+            LEFT JOIN estados e ON p.estado_id = e.id_estado
+            LEFT JOIN municipios m ON p.municipio_id = m.id_municipio
+            LEFT JOIN parroquias pa ON p.parroquia_id = pa.id_parroquia
+            LEFT JOIN paises pais ON p.pais_id = pais.id
+            LEFT JOIN nivel_estudios ne ON p.nivel_estudio_id = ne.id
+            LEFT JOIN etnia_indigenas et ON p.etnia_indigena_id = et.id
+            WHERE p.id = ?
+        `;
+
+        const [rows] = await db.query(sql, [id]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'Paciente no encontrado' });
+        }
+
+        res.json(rows[0]);
+    } catch (error) {
+        console.error("Error al obtener detalles del paciente:", error);
+        res.status(500).json({ 
+            message: 'Error al buscar paciente', 
+            error: error.message 
+        });
+    }
+};
+
+module.exports = { getAllPacientes, getPacienteById, createPaciente, updatePaciente, deletePaciente, verInformacionPacientePorID };
