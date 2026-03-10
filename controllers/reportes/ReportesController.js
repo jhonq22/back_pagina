@@ -340,7 +340,179 @@ const ReportesController = {
                 error: error.message
             });
         }
+    },
+/**
+     * =========================================================
+     * APIS PARA GRÁFICOS (DASHBOARD)
+     * =========================================================
+     */
+getEstadisticasDashboard: async (req, res) => {
+        try {
+            const consultas = [
+                // 1. Solicitudes por Estatus
+                db.query(`
+                    SELECT 
+                        COALESCE(es.nombre_estatus, 'Sin Estatus') AS etiqueta, 
+                        COUNT(rs.id) AS total 
+                    FROM registrar_solicitud_pacientes rs
+                    LEFT JOIN estatus_solicitudes es ON rs.estatus_solicitud_id = es.id
+                    GROUP BY rs.estatus_solicitud_id, es.nombre_estatus
+                `),
+
+                // 2. Género (Mapeo: 2 = Mujer, 1 o NULL = Hombre)
+                db.query(`
+                    SELECT 
+                        CASE 
+                            WHEN p.sexo = '2' OR p.sexo = 2 THEN 'Mujer'
+                            ELSE 'Hombre' -- Esto cubre el 1, el NULL, y campos vacíos
+                        END AS etiqueta,
+                        COUNT(rs.id) AS total 
+                    FROM registrar_solicitud_pacientes rs
+                    INNER JOIN pacientes p ON rs.paciente_id = p.id
+                    GROUP BY etiqueta
+                `),
+
+                // 3. Distribución por Edades
+                db.query(`
+                    SELECT 
+                        CASE
+                            WHEN p.edad < 18 THEN 'Pediátrico'
+                            WHEN p.edad BETWEEN 18 AND 60 THEN 'Adulto'
+                            ELSE 'Adulto Mayor'
+                        END AS etiqueta,
+                        COUNT(rs.id) AS total
+                    FROM registrar_solicitud_pacientes rs
+                    INNER JOIN pacientes p ON rs.paciente_id = p.id
+                    GROUP BY etiqueta
+                `),
+
+                // 4. ¿Requiere Marcapaso?
+                db.query(`
+                    SELECT 
+                        IF(rs.tipo_operacion_id IN (1, 3), 'Con Marcapaso', 'Sin Marcapaso') AS etiqueta, 
+                        COUNT(rs.id) AS total 
+                    FROM registrar_solicitud_pacientes rs
+                    GROUP BY etiqueta
+                `),
+
+                // 5. Histórico de registros (últimos 6 meses)
+                db.query(`
+                    SELECT 
+                        DATE_FORMAT(rs.fecha_creacion, '%b %Y') AS etiqueta, 
+                        COUNT(rs.id) AS total
+                    FROM registrar_solicitud_pacientes rs
+                    GROUP BY etiqueta
+                    ORDER BY MAX(rs.fecha_creacion) ASC
+                    LIMIT 6
+                `)
+            ];
+
+            const [
+                [estatusRows], [generoRows], [edadRows], [marcapasoRows], [mensualRows]
+            ] = await Promise.all(consultas);
+
+            const format = (rows) => ({
+                labels: rows.map(r => r.etiqueta),
+                series: rows.map(r => r.total)
+            });
+
+            res.json({
+                success: true,
+                data: {
+                    porEstatus: format(estatusRows),
+                    porGenero: format(generoRows),
+                    porEdad: format(edadRows),
+                    porMarcapaso: format(marcapasoRows),
+                    tendenciaMensual: format(mensualRows)
+                }
+            });
+
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ success: false, error: error.message });
+        }
+    },
+
+
+    /**
+     * =========================================================
+     * API PARA REPORTE GENERAL (MÓDULO V)
+     * =========================================================
+     * Filtros dinámicos: hospital, estado, rango de fechas y tipo de reporte
+     */
+getReporteGeneral: async (req, res) => {
+    try {
+        const { tipo_reporte, hospital_id, estado_id, fecha_inicio, fecha_fin } = req.query;
+
+        if (!tipo_reporte) {
+            return res.status(400).json({ success: false, message: "El parámetro tipo_reporte es requerido." });
+        }
+
+        let baseQuery = `
+            SELECT 
+                rs.id AS solicitud_id,
+                p.cedula,
+                CONCAT(p.primer_nombre, ' ', p.primer_apellido) AS nombre_paciente,
+                p.edad,
+                cs.descripcion AS nombre_hospital,
+                e.estado,
+                rs.fecha_creacion,
+                rs.fecha_operacion,
+                es.nombre_estatus,
+                tp.tipo_operacion AS procedimiento,
+                IF(rs.tipo_operacion_id IN (1, 3), 'Sí', 'No') AS es_marcapaso
+            FROM registrar_solicitud_pacientes rs
+            INNER JOIN pacientes p ON rs.paciente_id = p.id
+            LEFT JOIN estatus_solicitudes es ON rs.estatus_solicitud_id = es.id
+            LEFT JOIN tipo_operaciones tp ON rs.tipo_operacion_id = tp.id
+            LEFT JOIN lista_centro_salud cs ON rs.centro_salud_id = cs.id
+            LEFT JOIN estados e ON p.estado_id = e.id_estado
+            WHERE 1=1
+        `;
+        
+        const params = [];
+
+        if (hospital_id) { baseQuery += ` AND rs.centro_salud_id = ?`; params.push(hospital_id); }
+        if (estado_id) { baseQuery += ` AND p.estado_id = ?`; params.push(estado_id); }
+        if (fecha_inicio && fecha_fin) {
+            baseQuery += ` AND DATE(rs.fecha_creacion) BETWEEN ? AND ?`;
+            params.push(fecha_inicio, fecha_fin);
+        }
+
+        switch(tipo_reporte) {
+            case 'administrativo': baseQuery += ` AND rs.estatus_solicitud_id = 1`; break;
+            case 'marcapasos': baseQuery += ` AND rs.tipo_operacion_id IN (1, 3) AND rs.estatus_solicitud_id = 3`; break;
+            case 'intervenidos': baseQuery += ` AND rs.estatus_solicitud_id = 3`; break;
+            case 'atendidos': baseQuery += ` AND rs.estatus_solicitud_id != 4`; break;
+            case 'rechazados': baseQuery += ` AND rs.estatus_solicitud_id = 4`; break;
+            default: return res.status(400).json({ success: false, message: "Tipo de reporte inválido." });
+        }
+
+        baseQuery += ` ORDER BY rs.fecha_creacion DESC`;
+        const [resultados] = await db.query(baseQuery, params);
+
+        res.json({ success: true, total: resultados.length, data: resultados });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
     }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 };
 
 module.exports = ReportesController;
