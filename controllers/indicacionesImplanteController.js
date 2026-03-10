@@ -1,7 +1,7 @@
 const db = require('../config/db');
 
 const indicacionesController = {
-    // Crear o Actualizar registro
+    // Crear o Actualizar registro (Upsert Dinámico)
     create: async (req, res) => {
         try {
             const data = req.body;
@@ -18,42 +18,66 @@ const indicacionesController = {
             );
 
             if (existing.length > 0) {
-                // --- MODO UPDATE ---
+                // --- MODO UPDATE PARCIAL CON COALESCE ---
+                // Si el valor enviado es undefined (no se envió) lo tratamos como NULL.
+                // COALESCE(?, columna_actual) => Si '?' es NULL, mantiene 'columna_actual'.
                 const recordId = existing[0].id;
-                const updateQuery = `UPDATE indicaciones_implante_nuevos SET 
-                    relacionado_frecuencia_cardiaca_id = ?, relacionado_trastornos_conduccion_id = ?, 
-                    relacionado_trastornos_funcionales_id = ?, relacionado_trastornos_otros_id = ?, 
-                    hb = ?, gb = ?, plaquetas = ?, creatinina = ?, urea = ?, 
-                    diagnostico = ?, pt = ?, ppt = ?, glicemia = ?,
-                    audit_usu_id = ?, audit_ip = ?, audit_dep_id = ? 
+                
+                const updateQuery = `
+                    UPDATE indicaciones_implante_nuevos SET 
+                        relacionado_frecuencia_cardiaca_id = COALESCE(?, relacionado_frecuencia_cardiaca_id), 
+                        relacionado_trastornos_conduccion_id = COALESCE(?, relacionado_trastornos_conduccion_id), 
+                        relacionado_trastornos_funcionales_id = COALESCE(?, relacionado_trastornos_funcionales_id), 
+                        relacionado_trastornos_otros_id = COALESCE(?, relacionado_trastornos_otros_id), 
+                        hb = COALESCE(?, hb), 
+                        gb = COALESCE(?, gb), 
+                        plaquetas = COALESCE(?, plaquetas), 
+                        creatinina = COALESCE(?, creatinina), 
+                        urea = COALESCE(?, urea), 
+                        diagnostico = COALESCE(?, diagnostico), 
+                        pt = COALESCE(?, pt), 
+                        ppt = COALESCE(?, ppt), 
+                        glicemia = COALESCE(?, glicemia),
+                        audit_usu_id = COALESCE(?, audit_usu_id), 
+                        audit_ip = COALESCE(?, audit_ip), 
+                        audit_dep_id = COALESCE(?, audit_dep_id)
                     WHERE id = ?`;
 
+                // Convertimos undefined a null para que COALESCE funcione correctamente
+                const safeVal = (val) => val === undefined ? null : val;
+
                 const updateValues = [
-                    data.relacionado_frecuencia_cardiaca_id, data.relacionado_trastornos_conduccion_id,
-                    data.relacionado_trastornos_funcionales_id, data.relacionado_trastornos_otros_id,
-                    data.hb, data.gb, data.plaquetas, data.creatinina, data.urea,
-                    data.diagnostico, data.pt, data.ppt, data.glicemia, // Nuevos campos
-                    data.audit_usu_id, data.audit_ip, data.audit_dep_id, recordId
+                    safeVal(data.relacionado_frecuencia_cardiaca_id), safeVal(data.relacionado_trastornos_conduccion_id),
+                    safeVal(data.relacionado_trastornos_funcionales_id), safeVal(data.relacionado_trastornos_otros_id),
+                    safeVal(data.hb), safeVal(data.gb), safeVal(data.plaquetas), safeVal(data.creatinina), safeVal(data.urea),
+                    safeVal(data.diagnostico), safeVal(data.pt), safeVal(data.ppt), safeVal(data.glicemia), 
+                    safeVal(data.audit_usu_id), safeVal(data.audit_ip), safeVal(data.audit_dep_id), 
+                    recordId
                 ];
 
                 await db.query(updateQuery, updateValues);
-                return res.status(200).json({ message: 'Registro actualizado correctamente', id: recordId });
+                return res.status(200).json({ message: 'Registro actualizado parcialmente con éxito', id: recordId });
 
             } else {
-                // --- MODO INSERT ---
+                // --- MODO INSERT (Primer guardado) ---
                 const insertQuery = `INSERT INTO indicaciones_implante_nuevos 
                     (solicitud_paciente_id, relacionado_frecuencia_cardiaca_id, relacionado_trastornos_conduccion_id, 
                     relacionado_trastornos_funcionales_id, relacionado_trastornos_otros_id, hb, gb, plaquetas, 
                     creatinina, urea, diagnostico, pt, ppt, glicemia, audit_usu_id, audit_ip, audit_dep_id) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
+                const safeVal = (val) => val === undefined ? null : val;
+
                 const insertValues = [
-                    data.solicitud_paciente_id, data.relacionado_frecuencia_cardiaca_id,
-                    data.relacionado_trastornos_conduccion_id, data.relacionado_trastornos_funcionales_id,
-                    data.relacionado_trastornos_otros_id, data.hb, data.gb, data.plaquetas,
-                    data.creatinina, data.urea, 
-                    data.diagnostico, data.pt, data.ppt, data.glicemia, // Nuevos campos
-                    data.audit_usu_id, data.audit_ip, data.audit_dep_id
+                    solicitud_paciente_id, 
+                    safeVal(data.relacionado_frecuencia_cardiaca_id),
+                    safeVal(data.relacionado_trastornos_conduccion_id), 
+                    safeVal(data.relacionado_trastornos_funcionales_id),
+                    safeVal(data.relacionado_trastornos_otros_id), 
+                    safeVal(data.hb), safeVal(data.gb), safeVal(data.plaquetas),
+                    safeVal(data.creatinina), safeVal(data.urea), 
+                    safeVal(data.diagnostico), safeVal(data.pt), safeVal(data.ppt), safeVal(data.glicemia),
+                    safeVal(data.audit_usu_id), safeVal(data.audit_ip), safeVal(data.audit_dep_id)
                 ];
 
                 const [result] = await db.query(insertQuery, insertValues);
@@ -88,24 +112,39 @@ const indicacionesController = {
         }
     },
 
-    // Actualizar (Método independiente si se requiere por ID de registro)
+    // Actualizar por ID específico (También le aplicamos COALESCE por seguridad)
     update: async (req, res) => {
         try {
             const { id } = req.params;
             const data = req.body;
-            const query = `UPDATE indicaciones_implante_nuevos SET 
-                relacionado_frecuencia_cardiaca_id = ?, relacionado_trastornos_conduccion_id = ?, 
-                relacionado_trastornos_funcionales_id = ?, relacionado_trastornos_otros_id = ?, 
-                hb = ?, gb = ?, plaquetas = ?, creatinina = ?, urea = ?, 
-                diagnostico = ?, pt = ?, ppt = ?, glicemia = ?,
-                audit_usu_id = ?, audit_ip = ? WHERE id = ?`;
+            
+            const query = `
+                UPDATE indicaciones_implante_nuevos SET 
+                    relacionado_frecuencia_cardiaca_id = COALESCE(?, relacionado_frecuencia_cardiaca_id), 
+                    relacionado_trastornos_conduccion_id = COALESCE(?, relacionado_trastornos_conduccion_id), 
+                    relacionado_trastornos_funcionales_id = COALESCE(?, relacionado_trastornos_funcionales_id), 
+                    relacionado_trastornos_otros_id = COALESCE(?, relacionado_trastornos_otros_id), 
+                    hb = COALESCE(?, hb), 
+                    gb = COALESCE(?, gb), 
+                    plaquetas = COALESCE(?, plaquetas), 
+                    creatinina = COALESCE(?, creatinina), 
+                    urea = COALESCE(?, urea), 
+                    diagnostico = COALESCE(?, diagnostico), 
+                    pt = COALESCE(?, pt), 
+                    ppt = COALESCE(?, ppt), 
+                    glicemia = COALESCE(?, glicemia),
+                    audit_usu_id = COALESCE(?, audit_usu_id), 
+                    audit_ip = COALESCE(?, audit_ip)
+                WHERE id = ?`;
+
+            const safeVal = (val) => val === undefined ? null : val;
 
             const values = [
-                data.relacionado_frecuencia_cardiaca_id, data.relacionado_trastornos_conduccion_id,
-                data.relacionado_trastornos_funcionales_id, data.relacionado_trastornos_otros_id,
-                data.hb, data.gb, data.plaquetas, data.creatinina, data.urea,
-                data.diagnostico, data.pt, data.ppt, data.glicemia,
-                data.audit_usu_id, data.audit_ip, id
+                safeVal(data.relacionado_frecuencia_cardiaca_id), safeVal(data.relacionado_trastornos_conduccion_id),
+                safeVal(data.relacionado_trastornos_funcionales_id), safeVal(data.relacionado_trastornos_otros_id),
+                safeVal(data.hb), safeVal(data.gb), safeVal(data.plaquetas), safeVal(data.creatinina), safeVal(data.urea),
+                safeVal(data.diagnostico), safeVal(data.pt), safeVal(data.ppt), safeVal(data.glicemia),
+                safeVal(data.audit_usu_id), safeVal(data.audit_ip), id
             ];
 
             await db.query(query, values);
