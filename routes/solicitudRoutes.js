@@ -13,6 +13,7 @@ const { confirmarCitas, eliminarTemporales } = require('../controllers/migrar_ci
 
 router.get('/pacientes-con-solicitudes', solicitudController.PacientesConSolicitudes);
 router.get('/pacientes-con-solicitudes-actualizados', solicitudController.PacientesConSolicitudesActualizados);
+router.get('/pacientes-con-solicitudes-no-actualizados', solicitudController.PacientesConSolicitudesNoActualizados);
 router.get('/ver-temporales', obtenerPacientesTemporales);
 
 // Rutas de Listado

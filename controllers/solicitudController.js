@@ -135,7 +135,7 @@ const getSolicitudesPendientesPorCentro = async (req, res) => {
             FROM registrar_solicitud_pacientes s
             INNER JOIN pacientes p ON s.paciente_id = p.id
             LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
-            WHERE s.estatus_solicitud_id IN (1, 4) 
+            WHERE s.estatus_solicitud_id IN (1) 
               AND s.centro_salud_id = ?
             ORDER BY s.fecha_creacion DESC`;
 
@@ -354,7 +354,7 @@ const fechaSQL = (date) => {
 const finalizarVerificacion = async (req, res) => {
     const { id } = req.params; // ID de la solicitud
 
-    // Agregamos fecha_operacion y medico_id a la desestructuración del body
+    // Extraemos los posibles campos del body
     const {
         tipo_operacion_id,
         estatus_solicitud_id,
@@ -363,9 +363,20 @@ const finalizarVerificacion = async (req, res) => {
         medico_id
     } = req.body;
 
-    if (!tipo_operacion_id || !estatus_solicitud_id) {
+    // 1. Construcción dinámica de campos a actualizar
+    const camposActualizar = [];
+    const valores = [];
+
+    if (tipo_operacion_id !== undefined) { camposActualizar.push('tipo_operacion_id = ?'); valores.push(tipo_operacion_id); }
+    if (estatus_solicitud_id !== undefined) { camposActualizar.push('estatus_solicitud_id = ?'); valores.push(estatus_solicitud_id); }
+    if (observacion_general !== undefined) { camposActualizar.push('observacion_general = ?'); valores.push(observacion_general); }
+    if (fecha_operacion !== undefined) { camposActualizar.push('fecha_operacion = ?'); valores.push(fecha_operacion); }
+    if (medico_id !== undefined) { camposActualizar.push('medico_id = ?'); valores.push(medico_id); }
+
+    // Si no enviaron absolutamente nada para actualizar, devolvemos error
+    if (camposActualizar.length === 0) {
         return res.status(400).json({
-            error: 'El tipo de operación y el estatus de la solicitud son obligatorios.'
+            error: 'Debes enviar al menos un campo válido para actualizar.'
         });
     }
 
@@ -374,7 +385,7 @@ const finalizarVerificacion = async (req, res) => {
     try {
         await connection.beginTransaction();
 
-        // 1. Verificamos que la solicitud exista y obtenemos el centro_salud_id para el re-agendamiento
+        // 2. Verificamos que la solicitud exista
         const [solicitud] = await connection.query(
             'SELECT id, paciente_id, centro_salud_id FROM registrar_solicitud_pacientes WHERE id = ?',
             [id]
@@ -388,9 +399,8 @@ const finalizarVerificacion = async (req, res) => {
         let nuevaFechaCita = null;
         const centro_salud_id = solicitud[0].centro_salud_id;
 
-        // 2. Lógica de Re-agendar (Value 5) se púso 100 que no existe para que no entre por ahora
-        if (parseInt(estatus_solicitud_id) === 100) {
-            // Obtener configuración de cupos filtrado por el centro de salud de la solicitud
+        // 3. Lógica de Re-agendar (SOLO si se envió estatus_solicitud_id y es 100)
+        if (estatus_solicitud_id !== undefined && parseInt(estatus_solicitud_id) === 100) {
             const [config] = await connection.query(
                 'SELECT * FROM configuracion_dias WHERE centro_salud_id = ?',
                 [centro_salud_id]
@@ -399,13 +409,11 @@ const finalizarVerificacion = async (req, res) => {
             const cuposPorDia = {};
             config.forEach(c => cuposPorDia[c.dia_semana] = c.cupos_maximos);
 
-            // Empezamos a buscar desde mañana
             let fechaCursor = sumarDias(new Date(), 1);
             let asignado = false;
             let intentos = 0;
 
             while (!asignado && intentos < 365) {
-                // Ajuste de día (JS 0-6 -> DB 1-7)
                 let diaSemanaJS = fechaCursor.getDay();
                 let diaSemanaDB = (diaSemanaJS === 0) ? 7 : diaSemanaJS;
 
@@ -444,58 +452,24 @@ const finalizarVerificacion = async (req, res) => {
                 await connection.rollback();
                 return res.status(400).json({ error: 'No se encontró disponibilidad para re-agendar.' });
             }
+
+            // Si logramos reagendar, agregamos fecha_cita a nuestra actualización dinámica
+            camposActualizar.push('fecha_cita = ?');
+            valores.push(nuevaFechaCita);
         }
 
-        // 3. Actualizamos la solicitud incluyendo la observación y los nuevos campos
-        if (nuevaFechaCita) {
-            // Caso: Re-agendar
-            await connection.query(
-                `UPDATE registrar_solicitud_pacientes 
-                 SET estatus_solicitud_id = ?, 
-                     tipo_operacion_id = ?,
-                     fecha_cita = ?,
-                     observacion_general = ?,
-                     fecha_operacion = ?,
-                     medico_id = ?
-                 WHERE id = ?`,
-                [
-                    estatus_solicitud_id,
-                    tipo_operacion_id,
-                    nuevaFechaCita,
-                    observacion_general || null,
-                    fecha_operacion || null,
-                    medico_id || null,
-                    id
-                ]
-            );
-        } else {
-            // Caso: Aprobar (2) o Rechazar (3/4)
-            await connection.query(
-                `UPDATE registrar_solicitud_pacientes 
-                 SET estatus_solicitud_id = ?, 
-                     tipo_operacion_id = ?,
-                     observacion_general = ?,
-                     fecha_operacion = ?,
-                     medico_id = ?
-                 WHERE id = ?`,
-                [
-                    estatus_solicitud_id,
-                    tipo_operacion_id,
-                    observacion_general || null,
-                    fecha_operacion || null,
-                    medico_id || null,
-                    id
-                ]
-            );
-        }
+        // 4. Ejecutar el UPDATE dinámico
+        const queryUpdate = `UPDATE registrar_solicitud_pacientes SET ${camposActualizar.join(', ')} WHERE id = ?`;
+        valores.push(id); // Añadimos el ID al final del arreglo de valores para el WHERE
 
+        await connection.query(queryUpdate, valores);
         await connection.commit();
 
         res.json({
             message: nuevaFechaCita
                 ? `Cita re-agendada con éxito para el día ${nuevaFechaCita}`
-                : 'Verificación administrativa finalizada con éxito',
-            estatus_actualizado: estatus_solicitud_id,
+                : 'Actualización finalizada con éxito',
+            estatus_actualizado: estatus_solicitud_id !== undefined ? estatus_solicitud_id : 'No modificado',
             nueva_fecha: nuevaFechaCita || null
         });
 
@@ -614,6 +588,45 @@ const PacientesConSolicitudes = async (req, res) => {
 };
 
 
+const PacientesConSolicitudesNoActualizados = async (req, res) => {
+    try {
+        const sql = `
+            SELECT
+                p.id as paciente_id, 
+                p.primer_nombre, 
+                p.primer_apellido, 
+                p.cedula, 
+                p.edad, 
+                p.codificacion_buen_gobierno, 
+                p.correo, 
+                p.telefono_celular, 
+                p.telefono_local,
+                s.tipo_marca_paso_id, 
+                DATE_FORMAT(s.fecha_cita, '%d/%m/%y') AS fecha_cita, -- Formato DD/MM/YY
+                es.nombre_estatus AS estatus_nombre,
+                cs.descripcion AS centro_salud_nombre
+            FROM registrar_solicitud_pacientes s
+            LEFT JOIN pacientes p ON s.paciente_id = p.id
+            LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
+            LEFT JOIN lista_centro_salud cs ON s.centro_salud_id = cs.id
+            WHERE p.actualizado = 0
+            ORDER BY s.fecha_creacion DESC
+        `;
+
+        // Ejecutamos la consulta
+        const [rows] = await db.query(sql);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'No se encontraron solicitudes registradas' });
+        }
+
+        // Retornamos el array completo
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 
 const PacientesConSolicitudesActualizados = async (req, res) => {
     try {
@@ -674,5 +687,6 @@ module.exports = {
     getSolicitudesPendientesPorCentro,
     PacientesConSolicitudes,
     getSolicitudesEstatusDinamico,
-    PacientesConSolicitudesActualizados
+    PacientesConSolicitudesActualizados,
+    PacientesConSolicitudesNoActualizados
 };

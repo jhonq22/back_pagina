@@ -16,6 +16,26 @@ const ReportesController = {
                 });
             }
 
+            // 0. SOLICITUD OPERACIÓN (NUEVO QUERY AGREGADO)
+            const [solicitudOperacionResult] = await db.query(`
+                SELECT 
+                     
+                    p.primer_nombre, p.primer_apellido, p.cedula, p.correo, p.telefono_celular, p.codificacion_buen_gobierno,
+                    s.tipo_marca_paso_id,
+                    es.nombre_estatus AS estatus_nombre,
+                    tp.tipo_operacion AS operacion,
+                    rm.primerNombre AS medico_nombre,
+                    rm.primerApellido AS medico_apellido,
+                    DATE_FORMAT(s.fecha_operacion, '%e de %M de %Y') AS fecha_operacion,
+                    DATE_FORMAT(s.fecha_cita, '%e de %M de %Y') AS fecha_solicitud
+                FROM registrar_solicitud_pacientes s
+                INNER JOIN pacientes p ON s.paciente_id = p.id
+                LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
+                LEFT JOIN tipo_operaciones tp ON s.tipo_operacion_id = tp.id
+                LEFT JOIN registro_medicos rm ON s.medico_id = rm.id
+                WHERE s.id = ? LIMIT 1
+            `, [solicitud_id]);
+
             // 1. ENFERMEDAD ACTUAL (Monitoreo de peso y datos generales)
          // 1. ENFERMEDAD ACTUAL (Monitoreo de peso y datos generales)
             const [enfActualResult] = await db.query(`
@@ -206,6 +226,7 @@ const ReportesController = {
             // 7. CONSTRUCCIÓN DEL JSON FINAL
             const sabana_paciente_completa = {
                 enfermedad_actual: {
+                         solicitud_operacion: solicitudOperacionResult[0] || null, // <--- NUEVO OBJETO AÑADIDO AQUÍ
                     monitoreo_peso: enfActualResult[0] ? {
                         peso_anterior: enfActualResult[0].peso_anterior,
                         fecha_anterior: enfActualResult[0].fecha_anterior,
