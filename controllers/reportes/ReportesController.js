@@ -22,6 +22,7 @@ const ReportesController = {
                      
                     p.primer_nombre, p.primer_apellido, p.cedula, p.correo, p.telefono_celular, p.codificacion_buen_gobierno,
                     s.tipo_marca_paso_id,
+                    s.observacion_general,
                     es.nombre_estatus AS estatus_nombre,
                     tp.tipo_operacion AS operacion,
                     rm.primerNombre AS medico_nombre,
