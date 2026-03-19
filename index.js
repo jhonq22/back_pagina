@@ -30,7 +30,7 @@ const paraclinicosRoutes = require('./routes/antecedentes/paraclinicosRoutes');
 const examenFisicoRoutes = require('./routes/antecedentes/examenFisicoRoutes');
 const medicosRoutes = require('./routes/crud/medicosRoutes');
 const reportesRoutes = require('./routes/reportes/reportesRoutes');
-const noticiasRoutes = require('./routes/intranet/noticiasRoutes');
+//const noticiasRoutes = require('./routes/intranet/noticiasRoutes');
 
 const app = express();
 
@@ -65,7 +65,7 @@ app.use('/api/reportes', reportesRoutes);
 
 
 //NO MIGRAR//
-app.use('/api/noticias', noticiasRoutes);
+//app.use('/api/noticias', noticiasRoutes);
 
 // Ruta base de prueba
 app.get('/', (req, res) => {
