@@ -32,6 +32,7 @@ const medicosRoutes = require('./routes/crud/medicosRoutes');
 const reportesRoutes = require('./routes/reportes/reportesRoutes');
 const noticiasRoutes = require('./routes/intranet/noticiasRoutes');
 const galeriaRoutes = require('./routes/intranet/galeriaRoutes');
+const baseLegalesRoutes = require('./routes/intranet/baseLegalesRoutes');
 
 const app = express();
 
@@ -63,6 +64,7 @@ app.use('/api/examen-fisico', examenFisicoRoutes);
 app.use('/api/medicos', medicosRoutes);
 app.use('/api/reportes', reportesRoutes);
 app.use('/api/galeria', galeriaRoutes);
+app.use('/api/base-legales', baseLegalesRoutes);
 
 
 
