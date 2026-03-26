@@ -609,7 +609,7 @@ const PacientesConSolicitudesNoActualizados = async (req, res) => {
             LEFT JOIN pacientes p ON s.paciente_id = p.id
             LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
             LEFT JOIN lista_centro_salud cs ON s.centro_salud_id = cs.id
-            WHERE p.actualizado = 0
+            WHERE p.actualizado = 0 AND s.estatus_solicitud_id = 1
             ORDER BY s.fecha_creacion DESC
         `;
 
@@ -617,7 +617,7 @@ const PacientesConSolicitudesNoActualizados = async (req, res) => {
         const [rows] = await db.query(sql);
 
         if (rows.length === 0) {
-            return res.status(404).json({ message: 'No se encontraron solicitudes registradas' });
+            return res.status(200).json([]);
         }
 
         // Retornamos el array completo
@@ -642,31 +642,33 @@ const PacientesConSolicitudesActualizados = async (req, res) => {
                 p.telefono_celular, 
                 p.telefono_local,
                 s.tipo_marca_paso_id, 
-                DATE_FORMAT(s.fecha_cita, '%d/%m/%y') AS fecha_cita, -- Formato DD/MM/YY
+                DATE_FORMAT(s.fecha_cita, '%d/%m/%y') AS fecha_cita,
                 es.nombre_estatus AS estatus_nombre,
                 cs.descripcion AS centro_salud_nombre
             FROM registrar_solicitud_pacientes s
             LEFT JOIN pacientes p ON s.paciente_id = p.id
             LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
             LEFT JOIN lista_centro_salud cs ON s.centro_salud_id = cs.id
-            WHERE p.actualizado = 1
+            WHERE p.actualizado = 1 AND s.estatus_solicitud_id = 1
             ORDER BY s.fecha_creacion DESC
         `;
 
-        // Ejecutamos la consulta
         const [rows] = await db.query(sql);
 
+        // Si no hay filas, devolvemos un 200 con un array vacío
+        // Esto evita que el frontend lo trate como un error de ruta o recurso
         if (rows.length === 0) {
-            return res.status(404).json({ message: 'No se encontro pacientes' });
+            return res.status(200).json([]); 
         }
 
-        // Retornamos el array completo
-        res.json(rows);
+        // Retornamos los datos encontrados
+        res.status(200).json(rows);
+
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error("Error en PacientesConSolicitudesActualizados:", error);
+        res.status(500).json({ error: 'Error interno del servidor' });
     }
 };
-
 
 module.exports = {
     createSolicitud,
