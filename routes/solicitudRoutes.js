@@ -9,7 +9,7 @@ const upload = multer({ storage: storage });
 
 
 const { subirExcelTemporal, obtenerPacientesTemporales, obtenerEstadoHospital } = require('../controllers/migrar_citas/MigrarCitasController');
-const { confirmarCitas, eliminarTemporales } = require('../controllers/migrar_citas/confirmacionController');
+const { confirmarCitas, eliminarTemporales, eliminarTemporalPorId } = require('../controllers/migrar_citas/confirmacionController');
 
 router.get('/pacientes-con-solicitudes', solicitudController.PacientesConSolicitudes);
 router.get('/pacientes-con-solicitudes-actualizados', solicitudController.PacientesConSolicitudesActualizados);
@@ -46,6 +46,8 @@ router.put('/update-tipo-operacion-y-marca-paso/:id', solicitudController.update
 router.post('/subir-excel-temporal', upload.single('archivo'), subirExcelTemporal);
 router.post('/confirmar-citas', confirmarCitas);
 router.post('/eliminar-temporales', eliminarTemporales);
+// El ":id" permite que la URL sea algo como /eliminar-temporal/5
+router.delete('/eliminar-temporal/:id', eliminarTemporalPorId);
 router.get('/estado-hospital/:centro_salud_id', obtenerEstadoHospital);
 
 

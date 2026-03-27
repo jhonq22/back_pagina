@@ -115,17 +115,19 @@ const getSolicitudesPendientesAreaAdministrativa = async (req, res) => {
 // solicitudes pendientes por centro salud
 const getSolicitudesPendientesPorCentro = async (req, res) => {
     try {
-        // Usamos req.params para obtener el ID de la ruta /:centro_salud_id
+        // 1. Obtenemos el ID del centro de los params y las fechas del query
         const { centro_salud_id } = req.params;
+        const { fechaInicio, fechaFin } = req.query;
 
         if (!centro_salud_id) {
             return res.status(400).json({ error: "El ID del centro de salud es requerido." });
         }
 
-        // Establecer el idioma de la sesión a español para el formato de fecha
+        // Establecer el idioma de la sesión
         await db.query("SET lc_time_names = 'es_ES'");
 
-        const sql = `
+        // 2. Base de la consulta
+        let sql = `
             SELECT 
                 s.*, 
                 p.primer_nombre, p.primer_apellido, p.cedula, p.correo, p.telefono_celular, p.codificacion_buen_gobierno,
@@ -137,9 +139,22 @@ const getSolicitudesPendientesPorCentro = async (req, res) => {
             LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
             WHERE s.estatus_solicitud_id IN (1) 
               AND s.centro_salud_id = ?
-            ORDER BY s.fecha_creacion DESC`;
+        `;
 
-        const [rows] = await db.query(sql, [centro_salud_id]);
+        // El primer parámetro siempre será el ID del centro
+        const params = [centro_salud_id];
+
+        // 3. Agregar filtro de fechas si ambas están presentes
+        if (fechaInicio && fechaFin) {
+            sql += ` AND DATE(s.fecha_cita) BETWEEN ? AND ?`;
+            params.push(fechaInicio, fechaFin);
+        }
+
+        // 4. Ordenamiento final
+        sql += ` ORDER BY s.fecha_creacion DESC`;
+
+        // 5. Ejecutar con el array de parámetros construido
+        const [rows] = await db.query(sql, params);
 
         res.json(rows);
     } catch (error) {
@@ -157,17 +172,19 @@ const getSolicitudesPendientesPorCentro = async (req, res) => {
 // estatus solicitud dinamicos
 const getSolicitudesEstatusDinamico = async (req, res) => {
     try {
-        // 1. Obtenemos el id del estatus desde los parámetros de la URL
+        // 1. Obtenemos el id del estatus desde req.params y las fechas desde req.query
         const { id } = req.params;
+        const { fechaInicio, fechaFin } = req.query;
 
         if (!id) {
             return res.status(400).json({ error: "El ID de estatus es obligatorio." });
         }
 
-        // 2. Establecemos el idioma de la sesión a español para el formato de fecha
+        // 2. Establecemos el idioma de la sesión a español
         await db.query("SET lc_time_names = 'es_ES'");
 
-        const sql = `
+        // 3. Base de la consulta SQL
+        let sql = `
             SELECT 
                 s.*, 
                 p.primer_nombre, p.primer_apellido, p.cedula, p.correo, p.telefono_celular, p.codificacion_buen_gobierno,
@@ -180,29 +197,45 @@ const getSolicitudesEstatusDinamico = async (req, res) => {
             FROM registrar_solicitud_pacientes s
             INNER JOIN pacientes p ON s.paciente_id = p.id
             LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
-            LEFT JOIN  registro_medicos rm ON s.medico_id = rm.id
+            LEFT JOIN registro_medicos rm ON s.medico_id = rm.id
             WHERE s.estatus_solicitud_id = ?
-            ORDER BY s.fecha_cita ASC`;
+        `;
 
-        // 3. Pasamos el id como parámetro a la consulta para evitar inyecciones SQL
-        const [rows] = await db.query(sql, [id]);
+        // Iniciamos el arreglo de parámetros con el ID del estatus
+        const params = [id];
+
+        // 4. Agregamos el filtro de fechas dinámicamente si vienen ambos campos
+        if (fechaInicio && fechaFin) {
+            sql += ` AND DATE(s.fecha_operacion) BETWEEN ? AND ?`;
+            params.push(fechaInicio, fechaFin);
+        }
+
+        // 5. Agregamos el ordenamiento al final
+        sql += ` ORDER BY s.fecha_cita ASC`;
+
+        // 6. Ejecutamos la consulta pasándole el arreglo de parámetros
+        const [rows] = await db.query(sql, params);
 
         res.json(rows);
     } catch (error) {
+        console.error("Error en getSolicitudesEstatusDinamico:", error);
         res.status(500).json({ error: error.message });
     }
 };
 
 
 
-
 // --- NUEVA API: Obtener todas las solicitudes con estatus 1 y 2 ---
 const getSolicitudesPendientesAreaMedica = async (req, res) => {
     try {
-        // 1. Establecemos el idioma de la sesión a español
+        // 1. Extraemos los parámetros de fecha de la URL (query string)
+        const { fechaInicio, fechaFin } = req.query;
+
+        // 2. Establecemos el idioma de la sesión a español
         await db.query("SET lc_time_names = 'es_ES'");
 
-        const sql = `
+        // 3. Base de la consulta SQL (usamos let para poder modificarla)
+        let sql = `
             SELECT 
                 s.*, 
                 p.primer_nombre, p.primer_apellido, p.cedula, p.correo, p.telefono_celular,
@@ -213,11 +246,25 @@ const getSolicitudesPendientesAreaMedica = async (req, res) => {
             INNER JOIN pacientes p ON s.paciente_id = p.id
             LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
             WHERE s.estatus_solicitud_id IN (3, 5)
-            ORDER BY s.fecha_cita ASC`;
+        `;
 
-        const [rows] = await db.query(sql);
+        const params = [];
+
+        // 4. Agregamos el filtro de fecha_cita dinámicamente
+        if (fechaInicio && fechaFin) {
+            sql += ` AND DATE(s.fecha_cita) BETWEEN ? AND ?`;
+            params.push(fechaInicio, fechaFin);
+        }
+
+        // 5. Agregamos el ordenamiento al final
+        sql += ` ORDER BY s.fecha_cita ASC`;
+
+        // 6. Ejecutamos la consulta con sus parámetros
+        const [rows] = await db.query(sql, params);
+
         res.json(rows);
     } catch (error) {
+        console.error("Error en getSolicitudesPendientesAreaMedica:", error);
         res.status(500).json({ error: error.message });
     }
 };
@@ -551,7 +598,12 @@ const updateTipoOperacionYMarcaPaso = async (req, res) => {
 
 const PacientesConSolicitudes = async (req, res) => {
     try {
-        const sql = `
+        // 1. Extraemos los parámetros de req.query
+        const { fechaInicio, fechaFin } = req.query;
+
+        // 2. Definimos la base de la consulta
+        // Nota: He quitado el ORDER BY de aquí para concatenarlo al final
+        let sql = `
             SELECT
                 p.id as paciente_id, 
                 p.primer_nombre, 
@@ -563,26 +615,39 @@ const PacientesConSolicitudes = async (req, res) => {
                 p.telefono_celular, 
                 p.telefono_local,
                 s.tipo_marca_paso_id, 
-                DATE_FORMAT(s.fecha_cita, '%d/%m/%y') AS fecha_cita, -- Formato DD/MM/YY
+                DATE_FORMAT(s.fecha_cita, '%d/%m/%y') AS fecha_cita,
                 es.nombre_estatus AS estatus_nombre,
                 cs.descripcion AS centro_salud_nombre
             FROM registrar_solicitud_pacientes s
             LEFT JOIN pacientes p ON s.paciente_id = p.id
             LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
             LEFT JOIN lista_centro_salud cs ON s.centro_salud_id = cs.id
-            ORDER BY s.fecha_creacion DESC
         `;
 
-        // Ejecutamos la consulta
-        const [rows] = await db.query(sql);
+        const params = [];
 
-        if (rows.length === 0) {
-            return res.status(404).json({ message: 'No se encontraron solicitudes registradas' });
+        // 3. Agregamos el filtro de fechas dinámicamente
+        // Si vienen null o vacíos, este bloque se salta y trae todo
+        if (fechaInicio && fechaFin) {
+            sql += ` WHERE DATE(s.fecha_cita) BETWEEN ? AND ?`;
+            params.push(fechaInicio, fechaFin);
         }
 
-        // Retornamos el array completo
+        // 4. Agregamos el ordenamiento al final de todo
+        sql += ` ORDER BY s.fecha_creacion DESC`;
+
+        // 5. Ejecutamos la consulta con los parámetros
+        const [rows] = await db.query(sql, params);
+
+        if (rows.length === 0) {
+            // Cambiado a 200 con array vacío para que el front no de error de "No encontrado"
+            // pero mantengo tu lógica de mensaje si prefieres el 404
+            return res.status(200).json([]);
+        }
+
         res.json(rows);
     } catch (error) {
+        console.error("Error en PacientesConSolicitudes:", error);
         res.status(500).json({ error: error.message });
     }
 };
@@ -590,7 +655,11 @@ const PacientesConSolicitudes = async (req, res) => {
 
 const PacientesConSolicitudesNoActualizados = async (req, res) => {
     try {
-        const sql = `
+        // 1. Extraemos los parámetros de la URL (Query String)
+        const { fechaInicio, fechaFin } = req.query;
+
+        // 2. Definimos la base de la consulta SQL
+        let sql = `
             SELECT
                 p.id as paciente_id, 
                 p.primer_nombre, 
@@ -602,7 +671,7 @@ const PacientesConSolicitudesNoActualizados = async (req, res) => {
                 p.telefono_celular, 
                 p.telefono_local,
                 s.tipo_marca_paso_id, 
-                DATE_FORMAT(s.fecha_cita, '%d/%m/%y') AS fecha_cita, -- Formato DD/MM/YY
+                DATE_FORMAT(s.fecha_cita, '%d/%m/%y') AS fecha_cita,
                 es.nombre_estatus AS estatus_nombre,
                 cs.descripcion AS centro_salud_nombre
             FROM registrar_solicitud_pacientes s
@@ -610,19 +679,30 @@ const PacientesConSolicitudesNoActualizados = async (req, res) => {
             LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
             LEFT JOIN lista_centro_salud cs ON s.centro_salud_id = cs.id
             WHERE p.actualizado = 0 AND s.estatus_solicitud_id = 1
-            ORDER BY s.fecha_creacion DESC
         `;
 
-        // Ejecutamos la consulta
-        const [rows] = await db.query(sql);
+        const params = [];
+
+        // 3. Aplicamos el filtro de fechas solo si ambos campos están presentes
+        if (fechaInicio && fechaFin) {
+            sql += ` AND DATE(s.fecha_cita) BETWEEN ? AND ?`;
+            params.push(fechaInicio, fechaFin);
+        }
+
+        // 4. Agregamos el ordenamiento final
+        sql += ` ORDER BY s.fecha_creacion DESC`;
+
+        // 5. Ejecutamos la consulta usando parámetros para evitar SQL Injection
+        const [rows] = await db.query(sql, params);
 
         if (rows.length === 0) {
             return res.status(200).json([]);
         }
 
-        // Retornamos el array completo
+        // Retornamos los resultados
         res.json(rows);
     } catch (error) {
+        console.error("Error en PacientesConSolicitudesNoActualizados:", error);
         res.status(500).json({ error: error.message });
     }
 };
@@ -630,7 +710,11 @@ const PacientesConSolicitudesNoActualizados = async (req, res) => {
 
 const PacientesConSolicitudesActualizados = async (req, res) => {
     try {
-        const sql = `
+        // 1. Recibimos los parámetros por query string (ej: ?fechaInicio=2023-01-01&fechaFin=2023-12-31)
+        const { fechaInicio, fechaFin } = req.query;
+
+        // 2. Base de la consulta y arreglo de parámetros
+        let sql = `
             SELECT
                 p.id as paciente_id, 
                 p.primer_nombre, 
@@ -650,18 +734,35 @@ const PacientesConSolicitudesActualizados = async (req, res) => {
             LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
             LEFT JOIN lista_centro_salud cs ON s.centro_salud_id = cs.id
             WHERE p.actualizado = 1 AND s.estatus_solicitud_id = 1
-            ORDER BY s.fecha_creacion DESC
         `;
+        
+        const params = [];
 
-        const [rows] = await db.query(sql);
+        // 3. Agregamos las condiciones dinámicamente si vienen los parámetros
+        if (fechaInicio && fechaFin) {
+            // Si vienen ambas, filtramos por el rango
+            sql += ` AND DATE(s.fecha_cita) BETWEEN ? AND ?`;
+            params.push(fechaInicio, fechaFin);
+        } else if (fechaInicio) {
+            // Si por alguna razón solo mandan el inicio
+            sql += ` AND DATE(s.fecha_cita) >= ?`;
+            params.push(fechaInicio);
+        } else if (fechaFin) {
+            // Si solo mandan el fin
+            sql += ` AND DATE(s.fecha_cita) <= ?`;
+            params.push(fechaFin);
+        }
 
-        // Si no hay filas, devolvemos un 200 con un array vacío
-        // Esto evita que el frontend lo trate como un error de ruta o recurso
+        // 4. Agregamos el ordenamiento al final
+        sql += ` ORDER BY s.fecha_creacion DESC`;
+
+        // 5. Ejecutamos pasando el arreglo de parámetros
+        const [rows] = await db.query(sql, params);
+
         if (rows.length === 0) {
             return res.status(200).json([]); 
         }
 
-        // Retornamos los datos encontrados
         res.status(200).json(rows);
 
     } catch (error) {

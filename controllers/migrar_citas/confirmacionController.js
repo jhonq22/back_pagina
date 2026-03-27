@@ -166,4 +166,44 @@ const eliminarTemporales = async (req, res) => {
     }
 };
 
-module.exports = { confirmarCitas, eliminarTemporales };
+
+const eliminarTemporalPorId = async (req, res) => {
+    // Obtenemos el ID de los parámetros de la ruta
+    const { id } = req.params;
+    const connection = await db.getConnection();
+
+    try {
+        // Ejecutamos la consulta filtrando por el ID
+        const [result] = await connection.query(
+            'DELETE FROM pacientes_cita_temporal WHERE id = ?',
+            [id]
+        );
+
+        // Verificamos si las filas afectadas son mayores a 0
+        if (result.affectedRows > 0) {
+            return res.json({
+                status: true,
+                msg: `El registro con ID ${id} ha sido eliminado correctamente.`
+            });
+        } else {
+            // Si el ID no existe o ya fue eliminado
+            return res.status(404).json({
+                status: false,
+                msg: 'No se encontró el registro especificado para eliminar.'
+            });
+        }
+
+    } catch (error) {
+        console.error("Error al eliminar el registro temporal:", error);
+        return res.status(500).json({
+            status: false,
+            msg: 'Hubo un error al intentar eliminar el registro.',
+            error: error.message
+        });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+
+module.exports = { confirmarCitas, eliminarTemporales, eliminarTemporalPorId };
