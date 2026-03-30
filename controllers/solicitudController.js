@@ -225,7 +225,7 @@ const getSolicitudesEstatusDinamico = async (req, res) => {
 
 
 
-// --- NUEVA API: Obtener todas las solicitudes con estatus 1 y 2 ---
+// --- NUEVA API: Obtener todas las solicitudes con estatus 6 y 5 ---
 const getSolicitudesPendientesAreaMedica = async (req, res) => {
     try {
         // 1. Extraemos los parámetros de fecha de la URL (query string)
@@ -245,7 +245,7 @@ const getSolicitudesPendientesAreaMedica = async (req, res) => {
             FROM registrar_solicitud_pacientes s
             INNER JOIN pacientes p ON s.paciente_id = p.id
             LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
-            WHERE s.estatus_solicitud_id IN (3, 5)
+            WHERE s.estatus_solicitud_id IN (6, 5)
         `;
 
         const params = [];
@@ -268,6 +268,69 @@ const getSolicitudesPendientesAreaMedica = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+
+
+
+const getSolicitudesPendientesAreaMedicaOperados = async (req, res) => {
+    try {
+        // 1. Extraemos los parámetros de fecha de la URL (query string)
+        const { fechaInicio, fechaFin } = req.query;
+
+        // 2. Establecemos el idioma de la sesión a español
+        await db.query("SET lc_time_names = 'es_ES'");
+
+        // 3. Base de la consulta SQL (usamos let para poder modificarla)
+        let sql = `
+            SELECT 
+                s.*, 
+                p.primer_nombre, p.primer_apellido, p.cedula, p.correo, p.telefono_celular,
+                s.tipo_marca_paso_id,
+                es.nombre_estatus AS estatus_nombre,
+                DATE_FORMAT(s.fecha_cita, '%e de %M de %Y') AS fecha_solicitud
+            FROM registrar_solicitud_pacientes s
+            INNER JOIN pacientes p ON s.paciente_id = p.id
+            LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
+            WHERE s.estatus_solicitud_id IN (3)
+        `;
+
+        const params = [];
+
+        // 4. Agregamos el filtro de fecha_cita dinámicamente
+        if (fechaInicio && fechaFin) {
+            sql += ` AND DATE(s.fecha_cita) BETWEEN ? AND ?`;
+            params.push(fechaInicio, fechaFin);
+        }
+
+        // 5. Agregamos el ordenamiento al final
+        sql += ` ORDER BY s.fecha_cita ASC`;
+
+        // 6. Ejecutamos la consulta con sus parámetros
+        const [rows] = await db.query(sql, params);
+
+        res.json(rows);
+    } catch (error) {
+        console.error("Error en getSolicitudesPendientesAreaMedica:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // --- API ADMINISTRATIVA: Solo 1 solicitud ---
 const getSolicitudesAdministrativas = async (req, res) => {
     // 1. Obtenemos el ID del parámetro de la ruta
@@ -791,5 +854,6 @@ module.exports = {
     PacientesConSolicitudes,
     getSolicitudesEstatusDinamico,
     PacientesConSolicitudesActualizados,
-    PacientesConSolicitudesNoActualizados
+    PacientesConSolicitudesNoActualizados,
+    getSolicitudesPendientesAreaMedicaOperados
 };

@@ -20,6 +20,7 @@ router.get('/ver-temporales', obtenerPacientesTemporales);
 router.get('/', solicitudController.getSolicitudes);
 router.get('/dinamico/:id', solicitudController.getSolicitudesEstatusDinamico);
 router.get('/pendientes', solicitudController.getSolicitudesPendientesAreaMedica);
+router.get('/pendientes-operados', solicitudController.getSolicitudesPendientesAreaMedicaOperados);
 router.get('/pendientes-administrativas', solicitudController.getSolicitudesPendientesAreaAdministrativa);
 router.get('/pendientes-centro/:centro_salud_id', solicitudController.getSolicitudesPendientesPorCentro);
 router.get('/pendientes-medicas', solicitudController.getSolicitudesPendientesAreaMedica);
