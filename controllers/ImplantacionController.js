@@ -216,7 +216,7 @@ const ImplantacionController = {
         const { id } = req.params;
         try {
             const queries = [
-                db.query('SELECT * FROM Generador_implantado WHERE solicitud_paciente_id = ?', [id]),
+                db.query('SELECT * FROM generador_implantado WHERE solicitud_paciente_id = ?', [id]),
                 db.query('SELECT * FROM electrodo_verticular_implantado WHERE solicitud_paciente_id = ?', [id]),
                 db.query('SELECT * FROM electrodo_auricular_implantado WHERE solicitud_paciente_id = ?', [id]),
                 db.query('SELECT * FROM modo_estimulacion_implantado WHERE solicitud_paciente_id = ?', [id]),
