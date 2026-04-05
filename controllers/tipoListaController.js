@@ -165,6 +165,18 @@ const getTrastornosConduccion = async (req, res) => {
     }
 };
 
+
+const getListadoCardiopatiaIsquemica = async (req, res) => {
+    try {
+        const [rows] = await db.query(
+            'SELECT descripcion as label, id as value FROM listado_cardiopatia_isquemica WHERE estatus = 1'
+        );
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 // 14. Obtener Relacionado Trastornos Funcionales
 const getTrastornosFuncionales = async (req, res) => {
     try {
@@ -370,5 +382,6 @@ module.exports = {
     getListaIntervenciones,
     getPlanDiagnosticoEgreso,
     getCentrosSalud,
-    getMedicos
+    getMedicos,
+    getListadoCardiopatiaIsquemica
 };

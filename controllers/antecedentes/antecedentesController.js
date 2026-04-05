@@ -39,7 +39,9 @@ const saveAntecedentes = async (req, res) => {
         hospitalizacion_neonatal,
         habitos,
         quirurgico,
+        descripcion_quirurgico, // <-- Nuevo campo extraído
         familiares,
+        descripcion_familiares,
         tipo, // 'PERSONALES', 'FAMILIARES' o 'QUIRURGICOS'
         neonatal_pan,
         neonatal_tan,
@@ -53,7 +55,7 @@ const saveAntecedentes = async (req, res) => {
         return res.status(400).json({ message: "ID de solicitud requerido" });
     }
     if (!tipo) {
-        return res.status(400).json({ message: "El tipo de antecedente es requerido" });
+        return res.status(400).json({ message: "El tipo de antecendete es requerido" });
     }
 
     try {
@@ -74,7 +76,7 @@ const saveAntecedentes = async (req, res) => {
         };
 
         if (exist.length > 0) {
-            // 2. Si existe, hacemos UPDATE filtrando por solicitud Y tipo
+            // 2. Si existe, hacemos UPDATE
             const updateSql = `
                 UPDATE pacientes_antecedentes SET 
                     hospitalizacion_personales_mayores = ?, 
@@ -82,7 +84,9 @@ const saveAntecedentes = async (req, res) => {
                     hospitalizacion_neonatal = ?, 
                     habitos = ?, 
                     quirurgico = ?, 
+                    descripcion_quirurgico = ?, 
                     familiares = ?, 
+                    descripcion_familiares = ?, 
                     neonatal_pan = ?, 
                     neonatal_tan = ?, 
                     neonatal_eg = ?, 
@@ -93,10 +97,12 @@ const saveAntecedentes = async (req, res) => {
 
             const updateValues = [
                 camposJson.hpm, camposJson.pb, camposJson.hn,
-                camposJson.hb, camposJson.q, camposJson.f,
+                camposJson.hb, camposJson.q, 
+                descripcion_quirurgico || null, // Nuevo valor
+                camposJson.f, descripcion_familiares || null,
                 neonatal_pan, neonatal_tan, neonatal_eg,
                 otras, estatus || 1,
-                solicitud_paciente_id, tipo // Parámetros del WHERE
+                solicitud_paciente_id, tipo 
             ];
 
             await db.query(updateSql, updateValues);
@@ -109,14 +115,16 @@ const saveAntecedentes = async (req, res) => {
                 (
                     solicitud_paciente_id, hospitalizacion_personales_mayores, 
                     patologia_base, hospitalizacion_neonatal, habitos, 
-                    quirurgico, familiares, tipo, neonatal_pan, 
-                    neonatal_tan, neonatal_eg, otras, estatus
+                    quirurgico, descripcion_quirurgico, familiares, descripcion_familiares, tipo, 
+                    neonatal_pan, neonatal_tan, neonatal_eg, otras, estatus
                 ) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
             const insertValues = [
                 solicitud_paciente_id, camposJson.hpm, camposJson.pb,
-                camposJson.hn, camposJson.hb, camposJson.q, camposJson.f,
+                camposJson.hn, camposJson.hb, camposJson.q, 
+                descripcion_quirurgico || null, // Nuevo valor
+                camposJson.f, descripcion_familiares || null,
                 tipo, neonatal_pan, neonatal_tan, neonatal_eg,
                 otras, estatus || 1
             ];

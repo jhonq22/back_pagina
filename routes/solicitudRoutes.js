@@ -16,6 +16,11 @@ router.get('/pacientes-con-solicitudes-actualizados', solicitudController.Pacien
 router.get('/pacientes-con-solicitudes-no-actualizados', solicitudController.PacientesConSolicitudesNoActualizados);
 router.get('/ver-temporales', obtenerPacientesTemporales);
 
+
+// Rutas exclusivas para el campo marcapaso
+router.get('/marcapaso/:id', solicitudController.getMarcapasoById);
+router.put('/update-marcapaso/:id', solicitudController.updateMarcapaso);
+
 // Rutas de Listado
 router.get('/', solicitudController.getSolicitudes);
 router.get('/dinamico/:id', solicitudController.getSolicitudesEstatusDinamico);

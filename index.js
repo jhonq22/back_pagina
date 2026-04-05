@@ -30,6 +30,11 @@ const paraclinicosRoutes = require('./routes/antecedentes/paraclinicosRoutes');
 const examenFisicoRoutes = require('./routes/antecedentes/examenFisicoRoutes');
 const medicosRoutes = require('./routes/crud/medicosRoutes');
 const reportesRoutes = require('./routes/reportes/reportesRoutes');
+const hemodinamiaRoutes = require('./routes/antecedentes/hemodinamiaRoutes');
+const sugerenciasRoutes = require('./routes/hemodinamia/sugerenciaRoutes');
+
+
+//NO MIGRAR
 const noticiasRoutes = require('./routes/intranet/noticiasRoutes');
 const galeriaRoutes = require('./routes/intranet/galeriaRoutes');
 const baseLegalesRoutes = require('./routes/intranet/baseLegalesRoutes');
@@ -53,6 +58,7 @@ app.use('/api/complicaciones', complicacionesRoutes);
 app.use('/api/indicaciones', indicacionesRoutes);
 app.use('/api/antecedentes-hemodinamia', AntecedentesHemodinamiaRoutes);
 app.use('/api/cateterismo', cateterismoRoutes);
+app.use('/api/sugerencias', sugerenciasRoutes);
 app.use('/api/cateterismo-terapeutico', cateterismoTerapeuticoRoutes);
 app.use('/api/egreso-hemodinamia', egresoHemodinamiaRoutes);
 app.use('/api/configuracion-dias', configuracionDiasRoutes);
@@ -65,6 +71,8 @@ app.use('/api/medicos', medicosRoutes);
 app.use('/api/reportes', reportesRoutes);
 app.use('/api/galeria', galeriaRoutes);
 app.use('/api/base-legales', baseLegalesRoutes);
+app.use('/api/hemodinamia', hemodinamiaRoutes);
+
 
 
 

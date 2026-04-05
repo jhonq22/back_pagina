@@ -24,6 +24,8 @@ router.get('/indicaciones-frecuencia', tipoListaController.getRelacionadoFrecuen
 router.get('/indicaciones-conduccion', tipoListaController.getTrastornosConduccion);
 router.get('/indicaciones-funcionales', tipoListaController.getTrastornosFuncionales);
 router.get('/indicaciones-otros', tipoListaController.getTrastornosOtros);
+router.get('/listado-cardiopatia-isquemica', tipoListaController.getListadoCardiopatiaIsquemica); // Nueva
+
 
 // Listas de Técnica de Procedimiento
 router.get('/tecnica-general', tipoListaController.getTecnicaGeneral);

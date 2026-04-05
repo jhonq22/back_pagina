@@ -98,7 +98,12 @@ const saveECO = async (req, res) => {
         solicitud_paciente_id, fevi_simpson, fevi_z_score, ddvi,
         ddvi_z_score, ddvd, evaluacion_valvular_id, evaluacion_sub_valvular_id,
         vcsip, fop,
-        valvula_vao_id, valvula_vm_id, valvula_vp_id, valvula_vt_id
+        valvula_vao_id, valvula_vm_id, valvula_vp_id, valvula_vt_id,
+        // --- Nuevos campos extraídos del body ---
+        induccion_isquemia_tipo_id, 
+        frecuencia_cardiaca_maxima_estimada, 
+        resultado_isquemia_id, 
+        resultado_viabilidad_id
     } = req.body;
 
     try {
@@ -112,13 +117,19 @@ const saveECO = async (req, res) => {
                 `UPDATE paciente_paraclinico_eco SET 
                     fevi_simpson=?, fevi_z_score=?, ddvi=?, ddvi_z_score=?, ddvd=?, 
                     evaluacion_valvular_id=?, evaluacion_sub_valvular_id=?, vcsip=?, fop=?,
-                    valvula_vao_id=?, valvula_vm_id=?, valvula_vp_id=?, valvula_vt_id=? 
+                    valvula_vao_id=?, valvula_vm_id=?, valvula_vp_id=?, valvula_vt_id=?,
+                    induccion_isquemia_tipo_id=?, frecuencia_cardiaca_maxima_estimada=?,
+                    resultado_isquemia_id=?, resultado_viabilidad_id=?
                 WHERE solicitud_paciente_id=?`,
                 [
                     fevi_simpson, fevi_z_score, ddvi, ddvi_z_score, ddvd,
-                    evaluacionValvularJson, // Aquí pasamos la variable convertida a JSON
+                    evaluacionValvularJson, 
                     evaluacion_sub_valvular_id, vcsip, fop,
                     valvula_vao_id, valvula_vm_id, valvula_vp_id, valvula_vt_id,
+                    induccion_isquemia_tipo_id || null, 
+                    frecuencia_cardiaca_maxima_estimada || null, 
+                    resultado_isquemia_id || null, 
+                    resultado_viabilidad_id || null,
                     solicitud_paciente_id
                 ]
             );
@@ -130,14 +141,20 @@ const saveECO = async (req, res) => {
             (
                 solicitud_paciente_id, fevi_simpson, fevi_z_score, ddvi, ddvi_z_score, ddvd, 
                 evaluacion_valvular_id, evaluacion_sub_valvular_id, vcsip, fop,
-                valvula_vao_id, valvula_vm_id, valvula_vp_id, valvula_vt_id
+                valvula_vao_id, valvula_vm_id, valvula_vp_id, valvula_vt_id,
+                induccion_isquemia_tipo_id, frecuencia_cardiaca_maxima_estimada, 
+                resultado_isquemia_id, resultado_viabilidad_id
             ) 
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, // 18 parámetros en total
             [
                 solicitud_paciente_id, fevi_simpson, fevi_z_score, ddvi, ddvi_z_score, ddvd,
-                evaluacionValvularJson, // Aquí pasamos la variable convertida a JSON
+                evaluacionValvularJson, 
                 evaluacion_sub_valvular_id, vcsip, fop,
-                valvula_vao_id, valvula_vm_id, valvula_vp_id, valvula_vt_id
+                valvula_vao_id, valvula_vm_id, valvula_vp_id, valvula_vt_id,
+                induccion_isquemia_tipo_id || null, 
+                frecuencia_cardiaca_maxima_estimada || null, 
+                resultado_isquemia_id || null, 
+                resultado_viabilidad_id || null
             ]
         );
         res.status(201).json({ message: 'ECO registrado' });

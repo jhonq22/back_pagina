@@ -834,6 +834,54 @@ const PacientesConSolicitudesActualizados = async (req, res) => {
     }
 };
 
+
+
+
+// --- NUEVA API: Obtener solo el estatus del marcapaso ---
+const getMarcapasoById = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const sql = 'SELECT marcapaso FROM registrar_solicitud_pacientes WHERE id = ?';
+        const [rows] = await db.query(sql, [id]);
+        
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'Solicitud no encontrada' });
+        }
+        
+        res.json(rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// --- NUEVA API: Actualizar solo el campo marcapaso ---
+const updateMarcapaso = async (req, res) => {
+    const { id } = req.params;
+    const { marcapaso } = req.body;
+
+    try {
+        const sql = 'UPDATE registrar_solicitud_pacientes SET marcapaso = ? WHERE id = ?';
+        const [result] = await db.query(sql, [marcapaso, id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Solicitud no encontrada' });
+        }
+
+        res.json({ message: 'Estado del marcapaso actualizado correctamente' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+
+
+
+
+
+
+
+
+
 module.exports = {
     createSolicitud,
     getSolicitudes,
@@ -855,5 +903,8 @@ module.exports = {
     getSolicitudesEstatusDinamico,
     PacientesConSolicitudesActualizados,
     PacientesConSolicitudesNoActualizados,
-    getSolicitudesPendientesAreaMedicaOperados
+    getSolicitudesPendientesAreaMedicaOperados,
+    getMarcapasoById,
+    updateMarcapaso,
+  
 };
