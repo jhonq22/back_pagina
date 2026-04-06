@@ -58,12 +58,20 @@ const saveEnfermedadActual = async (req, res) => {
         ross,
         nyha,
         otra_sintomatologia,
-        // NUEVOS CAMPOS
         retraso_pondoestatural,
         retraso_pondoestatural_mayor_p3,
         retraso_pondoestatural_mayor_p10,
         retraso_pondoestatural_menor_p10,
-        retraso_combo_id 
+        retraso_combo_id,
+        // --- NUEVOS CAMPOS HEMODINAMIA ---
+        asintomatico_cardiovascular_hemodinamia,
+        angina_estable_esfuerzo_hemodinamia,
+        angina_hijo_hemodinamia_id,
+        scascest_hemodinamia,
+        scascest_hemodinamia_hijo_id,
+        disnea_esfuerzo_hemodinamia,
+        disnea_hijo_id,
+        sincope_hemodinamia
     } = req.body;
 
     if (!solicitud_paciente_id) {
@@ -91,7 +99,11 @@ const saveEnfermedadActual = async (req, res) => {
                     ross = ?, nyha = ?, otra_sintomatologia = ?,
                     retraso_pondoestatural = ?, retraso_pondoestatural_mayor_p3 = ?, 
                     retraso_pondoestatural_mayor_p10 = ?, retraso_pondoestatural_menor_p10 = ?,
-                    retraso_combo_id = ?, -- <--- Agregado aquí
+                    retraso_combo_id = ?,
+                    asintomatico_cardiovascular_hemodinamia = ?, angina_estable_esfuerzo_hemodinamia = ?,
+                    angina_hijo_hemodinamia_id = ?, scascest_hemodinamia = ?,
+                    scascest_hemodinamia_hijo_id = ?, disnea_esfuerzo_hemodinamia = ?,
+                    disnea_hijo_id = ?, sincope_hemodinamia = ?,
                     fecha_modificacion = CURRENT_TIMESTAMP
                 WHERE solicitud_paciente_id = ?`;
 
@@ -106,7 +118,11 @@ const saveEnfermedadActual = async (req, res) => {
                 ross, nyha, otra_sintomatologia,
                 retraso_pondoestatural, retraso_pondoestatural_mayor_p3,
                 retraso_pondoestatural_mayor_p10, retraso_pondoestatural_menor_p10,
-                retraso_combo_id, // <--- Agregado aquí
+                retraso_combo_id,
+                asintomatico_cardiovascular_hemodinamia, angina_estable_esfuerzo_hemodinamia,
+                angina_hijo_hemodinamia_id, scascest_hemodinamia,
+                scascest_hemodinamia_hijo_id, disnea_esfuerzo_hemodinamia,
+                disnea_hijo_id, sincope_hemodinamia,
                 solicitud_paciente_id
             ];
 
@@ -127,9 +143,12 @@ const saveEnfermedadActual = async (req, res) => {
                     ross, nyha, otra_sintomatologia,
                     retraso_pondoestatural, retraso_pondoestatural_mayor_p3,
                     retraso_pondoestatural_mayor_p10, retraso_pondoestatural_menor_p10,
-                    retraso_combo_id -- <--- Agregado aquí
+                    retraso_combo_id, asintomatico_cardiovascular_hemodinamia, 
+                    angina_estable_esfuerzo_hemodinamia, angina_hijo_hemodinamia_id, 
+                    scascest_hemodinamia, scascest_hemodinamia_hijo_id, 
+                    disnea_esfuerzo_hemodinamia, disnea_hijo_id, sincope_hemodinamia
                 ) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
             const insertValues = [
                 solicitud_paciente_id, ultimo_peso_kg, ultimo_peso_fecha, peso_actual_kg,
@@ -142,7 +161,10 @@ const saveEnfermedadActual = async (req, res) => {
                 ross, nyha, otra_sintomatologia,
                 retraso_pondoestatural, retraso_pondoestatural_mayor_p3,
                 retraso_pondoestatural_mayor_p10, retraso_pondoestatural_menor_p10,
-                retraso_combo_id // <--- Agregado aquí
+                retraso_combo_id, asintomatico_cardiovascular_hemodinamia,
+                angina_estable_esfuerzo_hemodinamia, angina_hijo_hemodinamia_id,
+                scascest_hemodinamia, scascest_hemodinamia_hijo_id,
+                disnea_esfuerzo_hemodinamia, disnea_hijo_id, sincope_hemodinamia
             ];
 
             await db.query(insertSql, insertValues);

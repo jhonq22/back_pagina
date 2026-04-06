@@ -6,8 +6,12 @@ const saveCateterismo = async (req, res) => {
         solicitud_paciente_id, 
         dominancia_id, 
         descripcion,
-        complicaciones_procedimiento, // <-- Nuevo campo extraído
-        complicaciones_acceso,        // <-- Nuevo campo extraído
+        complicaciones_procedimiento,
+        complicaciones_acceso,
+        // --- Nuevos campos extraídos ---
+        conclusiones_id,
+        conclusiones_otros,
+        sugerencia_diagnostico_id,
         arterias 
     } = req.body;
 
@@ -24,6 +28,9 @@ const saveCateterismo = async (req, res) => {
 
         let cateterismoId;
 
+        // Formatear array de conclusiones a JSON String
+        const conclusionesJson = conclusiones_id ? JSON.stringify(conclusiones_id) : null;
+
         if (exist.length > 0) {
             // 2. Si existe, hacemos UPDATE del maestro
             cateterismoId = exist[0].id;
@@ -34,13 +41,19 @@ const saveCateterismo = async (req, res) => {
                     descripcion = ?, 
                     complicaciones_procedimiento = ?, 
                     complicaciones_acceso = ?, 
+                    conclusiones_id = ?,
+                    conclusiones_otros = ?,
+                    sugerencia_diagnostico_id = ?,
                     fecha_actualizacion = CURRENT_TIMESTAMP
                 WHERE id = ?`,
                 [
                     dominancia_id || null, 
                     descripcion || null, 
-                    complicaciones_procedimiento || null, // <-- Nuevo valor
-                    complicaciones_acceso || null,        // <-- Nuevo valor
+                    complicaciones_procedimiento || null, 
+                    complicaciones_acceso || null, 
+                    conclusionesJson,
+                    conclusiones_otros || null,
+                    sugerencia_diagnostico_id || null,
                     cateterismoId
                 ]
             );
@@ -55,14 +68,17 @@ const saveCateterismo = async (req, res) => {
             // 4. Si no existe, hacemos INSERT del maestro
             const [result] = await db.query(
                 `INSERT INTO cateterismo_diagnostico_hemodinamia 
-                (solicitud_paciente_id, dominancia_id, descripcion, complicaciones_procedimiento, complicaciones_acceso) 
-                VALUES (?, ?, ?, ?, ?)`, // <-- Se agregaron dos ? adicionales
+                (solicitud_paciente_id, dominancia_id, descripcion, complicaciones_procedimiento, complicaciones_acceso, conclusiones_id, conclusiones_otros, sugerencia_diagnostico_id) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, 
                 [
                     solicitud_paciente_id, 
                     dominancia_id || null, 
                     descripcion || null,
-                    complicaciones_procedimiento || null, // <-- Nuevo valor
-                    complicaciones_acceso || null         // <-- Nuevo valor
+                    complicaciones_procedimiento || null, 
+                    complicaciones_acceso || null,
+                    conclusionesJson,
+                    conclusiones_otros || null,
+                    sugerencia_diagnostico_id || null
                 ]
             );
             

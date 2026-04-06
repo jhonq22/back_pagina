@@ -39,7 +39,7 @@ const saveAntecedentes = async (req, res) => {
         hospitalizacion_neonatal,
         habitos,
         quirurgico,
-        descripcion_quirurgico, // <-- Nuevo campo extraído
+        descripcion_quirurgico,
         familiares,
         descripcion_familiares,
         tipo, // 'PERSONALES', 'FAMILIARES' o 'QUIRURGICOS'
@@ -47,7 +47,28 @@ const saveAntecedentes = async (req, res) => {
         neonatal_tan,
         neonatal_eg,
         otras,
-        estatus
+        estatus,
+        // --- NUEVOS CAMPOS HEMODINAMIA ---
+        hta_hemodinamia,
+        dislipidemia_hemodinamia,
+        erc_hemodinamia,
+        neurologico_conservado_hc_hemodinamia,
+        sincope_hemodinamia,
+        claudicacion_intermitente_hemodinamia,
+        diabetes_mellitus_hemodinamia,
+        diabetes_mellitus_hemodinamia_hijo,
+        tabaquismo_hemodinamia,
+        tabaquismo_hemodinamia_hijo,
+        antecedentes_cardiopatia_isquemica_hemodinamia,
+        scasest_angina_inestable_hijo_hemodinamia,
+        im_sin_elevacion_st_hijo_hemodinamia,
+        scacest_hijo_hemodinamia,
+        alergia_yodo_hemodinamia,
+        alergia_yodo_hemodinamia_hijo,
+        alergia_medicamentos_hemodinamia,
+        alergia_medicamentos_hemodinamia_hijo,
+        otras_patologias_hemodinamia,
+        otras_patologias_hemodinamia_hijo
     } = req.body;
 
     // Validaciones iniciales
@@ -92,16 +113,45 @@ const saveAntecedentes = async (req, res) => {
                     neonatal_eg = ?, 
                     otras = ?, 
                     estatus = ?,
+                    hta_hemodinamia = ?,
+                    dislipidemia_hemodinamia = ?,
+                    erc_hemodinamia = ?,
+                    neurologico_conservado_hc_hemodinamia = ?,
+                    sincope_hemodinamia = ?,
+                    claudicacion_intermitente_hemodinamia = ?,
+                    diabetes_mellitus_hemodinamia = ?,
+                    diabetes_mellitus_hemodinamia_hijo = ?,
+                    tabaquismo_hemodinamia = ?,
+                    tabaquismo_hemodinamia_hijo = ?,
+                    antecedentes_cardiopatia_isquemica_hemodinamia = ?,
+                    scasest_angina_inestable_hijo_hemodinamia = ?,
+                    im_sin_elevacion_st_hijo_hemodinamia = ?,
+                    scacest_hijo_hemodinamia = ?,
+                    alergia_yodo_hemodinamia = ?,
+                    alergia_yodo_hemodinamia_hijo = ?,
+                    alergia_medicamentos_hemodinamia = ?,
+                    alergia_medicamentos_hemodinamia_hijo = ?,
+                    otras_patologias_hemodinamia = ?,
+                    otras_patologias_hemodinamia_hijo = ?,
                     fecha_modificacion = CURRENT_TIMESTAMP
                 WHERE solicitud_paciente_id = ? AND tipo = ?`;
 
             const updateValues = [
                 camposJson.hpm, camposJson.pb, camposJson.hn,
                 camposJson.hb, camposJson.q, 
-                descripcion_quirurgico || null, // Nuevo valor
+                descripcion_quirurgico || null, 
                 camposJson.f, descripcion_familiares || null,
                 neonatal_pan, neonatal_tan, neonatal_eg,
                 otras, estatus || 1,
+                hta_hemodinamia, dislipidemia_hemodinamia, erc_hemodinamia,
+                neurologico_conservado_hc_hemodinamia, sincope_hemodinamia, claudicacion_intermitente_hemodinamia,
+                diabetes_mellitus_hemodinamia, diabetes_mellitus_hemodinamia_hijo,
+                tabaquismo_hemodinamia, tabaquismo_hemodinamia_hijo,
+                antecedentes_cardiopatia_isquemica_hemodinamia, scasest_angina_inestable_hijo_hemodinamia,
+                im_sin_elevacion_st_hijo_hemodinamia, scacest_hijo_hemodinamia,
+                alergia_yodo_hemodinamia, alergia_yodo_hemodinamia_hijo,
+                alergia_medicamentos_hemodinamia, alergia_medicamentos_hemodinamia_hijo,
+                otras_patologias_hemodinamia, otras_patologias_hemodinamia_hijo,
                 solicitud_paciente_id, tipo 
             ];
 
@@ -116,17 +166,35 @@ const saveAntecedentes = async (req, res) => {
                     solicitud_paciente_id, hospitalizacion_personales_mayores, 
                     patologia_base, hospitalizacion_neonatal, habitos, 
                     quirurgico, descripcion_quirurgico, familiares, descripcion_familiares, tipo, 
-                    neonatal_pan, neonatal_tan, neonatal_eg, otras, estatus
+                    neonatal_pan, neonatal_tan, neonatal_eg, otras, estatus,
+                    hta_hemodinamia, dislipidemia_hemodinamia, erc_hemodinamia, neurologico_conservado_hc_hemodinamia,
+                    sincope_hemodinamia, claudicacion_intermitente_hemodinamia,
+                    diabetes_mellitus_hemodinamia, diabetes_mellitus_hemodinamia_hijo,
+                    tabaquismo_hemodinamia, tabaquismo_hemodinamia_hijo,
+                    antecedentes_cardiopatia_isquemica_hemodinamia, scasest_angina_inestable_hijo_hemodinamia,
+                    im_sin_elevacion_st_hijo_hemodinamia, scacest_hijo_hemodinamia,
+                    alergia_yodo_hemodinamia, alergia_yodo_hemodinamia_hijo,
+                    alergia_medicamentos_hemodinamia, alergia_medicamentos_hemodinamia_hijo,
+                    otras_patologias_hemodinamia, otras_patologias_hemodinamia_hijo
                 ) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
             const insertValues = [
                 solicitud_paciente_id, camposJson.hpm, camposJson.pb,
                 camposJson.hn, camposJson.hb, camposJson.q, 
-                descripcion_quirurgico || null, // Nuevo valor
+                descripcion_quirurgico || null, 
                 camposJson.f, descripcion_familiares || null,
                 tipo, neonatal_pan, neonatal_tan, neonatal_eg,
-                otras, estatus || 1
+                otras, estatus || 1,
+                hta_hemodinamia, dislipidemia_hemodinamia, erc_hemodinamia, neurologico_conservado_hc_hemodinamia,
+                sincope_hemodinamia, claudicacion_intermitente_hemodinamia,
+                diabetes_mellitus_hemodinamia, diabetes_mellitus_hemodinamia_hijo,
+                tabaquismo_hemodinamia, tabaquismo_hemodinamia_hijo,
+                antecedentes_cardiopatia_isquemica_hemodinamia, scasest_angina_inestable_hijo_hemodinamia,
+                im_sin_elevacion_st_hijo_hemodinamia, scacest_hijo_hemodinamia,
+                alergia_yodo_hemodinamia, alergia_yodo_hemodinamia_hijo,
+                alergia_medicamentos_hemodinamia, alergia_medicamentos_hemodinamia_hijo,
+                otras_patologias_hemodinamia, otras_patologias_hemodinamia_hijo
             ];
 
             await db.query(insertSql, insertValues);

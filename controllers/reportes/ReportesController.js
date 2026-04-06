@@ -26,6 +26,7 @@ const ReportesController = {
                     s.observacion_general,
                     es.nombre_estatus AS estatus_nombre,
                     tp.tipo_operacion AS operacion,
+                    cs.descripcion AS nombre_hospital,
                     rm.primerNombre AS medico_nombre,
                     rm.primerApellido AS medico_apellido,
                     DATE_FORMAT(s.fecha_operacion, '%e de %M de %Y') AS fecha_operacion,
@@ -33,6 +34,7 @@ const ReportesController = {
                 FROM registrar_solicitud_pacientes s
                 INNER JOIN pacientes p ON s.paciente_id = p.id
                 LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
+                LEFT JOIN lista_centro_salud cs ON s.centro_salud_id = cs.id
                 LEFT JOIN tipo_operaciones tp ON s.tipo_operacion_id = tp.id
                 LEFT JOIN registro_medicos rm ON s.medico_id = rm.id
                 WHERE s.id = ? LIMIT 1
@@ -495,8 +497,21 @@ getReporteGeneral: async (req, res) => {
         
         const params = [];
 
-        if (hospital_id) { baseQuery += ` AND rs.centro_salud_id = ?`; params.push(hospital_id); }
-        if (estado_id) { baseQuery += ` AND p.estado_id = ?`; params.push(estado_id); }
+        if (hospital_id) { 
+            baseQuery += ` AND rs.centro_salud_id = ?`; 
+            params.push(hospital_id); 
+        }
+
+        // --- CAMBIO APLICADO AQUÍ PARA MÚLTIPLES ESTADOS ---
+        if (estado_id) { 
+            const estadosArray = estado_id.split(','); // Convertimos "1,2" en ['1', '2']
+            const placeholders = estadosArray.map(() => '?').join(','); // Creamos los placeholders "?, ?"
+            
+            baseQuery += ` AND p.estado_id IN (${placeholders})`; 
+            params.push(...estadosArray); // Agregamos cada ID al arreglo de parámetros
+        }
+        // ---------------------------------------------------
+
         if (fecha_inicio && fecha_fin) {
             baseQuery += ` AND DATE(rs.fecha_creacion) BETWEEN ? AND ?`;
             params.push(fecha_inicio, fecha_fin);
@@ -519,7 +534,6 @@ getReporteGeneral: async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 }
-
 
 
 

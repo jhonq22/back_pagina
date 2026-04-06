@@ -99,18 +99,25 @@ const saveECO = async (req, res) => {
         ddvi_z_score, ddvd, evaluacion_valvular_id, evaluacion_sub_valvular_id,
         vcsip, fop,
         valvula_vao_id, valvula_vm_id, valvula_vp_id, valvula_vt_id,
-        // --- Nuevos campos extraídos del body ---
         induccion_isquemia_tipo_id, 
         frecuencia_cardiaca_maxima_estimada, 
         resultado_isquemia_id, 
-        resultado_viabilidad_id
+        resultado_viabilidad_id,
+        // --- Nuevos campos Hemodinamia ---
+        estado_funcion_sistolica_id_hemodinamia,
+        funcion_sistolica_id_hemodinamia,
+        funcion_diastolica_id_hemodinamia,
+        trastorno_contractilidad_json_hemodinamia,
+        descripcion_eco_hemodinamia,
+        descripcion_eco_doppler_hemodinamia
     } = req.body;
 
     try {
         const [exist] = await db.query('SELECT id FROM paciente_paraclinico_eco WHERE solicitud_paciente_id = ?', [solicitud_paciente_id]);
 
-        // Convertimos el array a JSON (si existe), de lo contrario lo dejamos nulo
+        // Convertimos los arrays/objetos a JSON (si existen), de lo contrario los dejamos nulos
         const evaluacionValvularJson = evaluacion_valvular_id ? JSON.stringify(evaluacion_valvular_id) : null;
+        const trastornoContractilidadJson = trastorno_contractilidad_json_hemodinamia ? JSON.stringify(trastorno_contractilidad_json_hemodinamia) : null;
 
         if (exist.length > 0) {
             await db.query(
@@ -119,7 +126,10 @@ const saveECO = async (req, res) => {
                     evaluacion_valvular_id=?, evaluacion_sub_valvular_id=?, vcsip=?, fop=?,
                     valvula_vao_id=?, valvula_vm_id=?, valvula_vp_id=?, valvula_vt_id=?,
                     induccion_isquemia_tipo_id=?, frecuencia_cardiaca_maxima_estimada=?,
-                    resultado_isquemia_id=?, resultado_viabilidad_id=?
+                    resultado_isquemia_id=?, resultado_viabilidad_id=?,
+                    estado_funcion_sistolica_id_hemodinamia=?, funcion_sistolica_id_hemodinamia=?,
+                    funcion_diastolica_id_hemodinamia=?, trastorno_contractilidad_json_hemodinamia=?,
+                    descripcion_eco_hemodinamia=?, descripcion_eco_doppler_hemodinamia=?
                 WHERE solicitud_paciente_id=?`,
                 [
                     fevi_simpson, fevi_z_score, ddvi, ddvi_z_score, ddvd,
@@ -130,6 +140,12 @@ const saveECO = async (req, res) => {
                     frecuencia_cardiaca_maxima_estimada || null, 
                     resultado_isquemia_id || null, 
                     resultado_viabilidad_id || null,
+                    estado_funcion_sistolica_id_hemodinamia || null,
+                    funcion_sistolica_id_hemodinamia || null,
+                    funcion_diastolica_id_hemodinamia || null,
+                    trastornoContractilidadJson,
+                    descripcion_eco_hemodinamia || null,
+                    descripcion_eco_doppler_hemodinamia || null,
                     solicitud_paciente_id
                 ]
             );
@@ -143,9 +159,12 @@ const saveECO = async (req, res) => {
                 evaluacion_valvular_id, evaluacion_sub_valvular_id, vcsip, fop,
                 valvula_vao_id, valvula_vm_id, valvula_vp_id, valvula_vt_id,
                 induccion_isquemia_tipo_id, frecuencia_cardiaca_maxima_estimada, 
-                resultado_isquemia_id, resultado_viabilidad_id
+                resultado_isquemia_id, resultado_viabilidad_id,
+                estado_funcion_sistolica_id_hemodinamia, funcion_sistolica_id_hemodinamia,
+                funcion_diastolica_id_hemodinamia, trastorno_contractilidad_json_hemodinamia,
+                descripcion_eco_hemodinamia, descripcion_eco_doppler_hemodinamia
             ) 
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, // 18 parámetros en total
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, // 24 parámetros
             [
                 solicitud_paciente_id, fevi_simpson, fevi_z_score, ddvi, ddvi_z_score, ddvd,
                 evaluacionValvularJson, 
@@ -154,7 +173,13 @@ const saveECO = async (req, res) => {
                 induccion_isquemia_tipo_id || null, 
                 frecuencia_cardiaca_maxima_estimada || null, 
                 resultado_isquemia_id || null, 
-                resultado_viabilidad_id || null
+                resultado_viabilidad_id || null,
+                estado_funcion_sistolica_id_hemodinamia || null,
+                funcion_sistolica_id_hemodinamia || null,
+                funcion_diastolica_id_hemodinamia || null,
+                trastornoContractilidadJson,
+                descripcion_eco_hemodinamia || null,
+                descripcion_eco_doppler_hemodinamia || null
             ]
         );
         res.status(201).json({ message: 'ECO registrado' });
