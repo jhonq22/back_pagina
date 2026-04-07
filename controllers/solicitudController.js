@@ -192,12 +192,14 @@ const getSolicitudesEstatusDinamico = async (req, res) => {
                 es.nombre_estatus AS estatus_nombre,
                 rm.primerNombre AS medico_nombre,
                 rm.primerApellido AS medico_apellido,
+                tp.tipo_operacion as operacion,
                 DATE_FORMAT(s.fecha_operacion, '%e de %M de %Y') AS fecha_operacion,
                 DATE_FORMAT(s.fecha_cita, '%e de %M de %Y') AS fecha_solicitud
             FROM registrar_solicitud_pacientes s
             INNER JOIN pacientes p ON s.paciente_id = p.id
             LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
             LEFT JOIN registro_medicos rm ON s.medico_id = rm.id
+            LEFT JOIN tipo_operaciones tp ON s.tipo_operacion_id = tp.id
             WHERE s.estatus_solicitud_id = ?
         `;
 

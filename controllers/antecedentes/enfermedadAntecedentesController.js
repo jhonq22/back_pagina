@@ -2,7 +2,6 @@ const db = require('../../config/db');
 
 /**
  * Obtiene opciones de catálogo filtradas por padre_id
- * Retorna un array de objetos: { label: nombre, value: id }
  */
 const lista_catologo_enfermedad = async (req, res) => {
     const { padre_id } = req.params;
@@ -71,7 +70,8 @@ const saveEnfermedadActual = async (req, res) => {
         scascest_hemodinamia_hijo_id,
         disnea_esfuerzo_hemodinamia,
         disnea_hijo_id,
-        sincope_hemodinamia
+        sincope_hemodinamia,
+        scacest_texto // <-- NUEVO CAMPO RECIBIDO
     } = req.body;
 
     if (!solicitud_paciente_id) {
@@ -104,6 +104,7 @@ const saveEnfermedadActual = async (req, res) => {
                     angina_hijo_hemodinamia_id = ?, scascest_hemodinamia = ?,
                     scascest_hemodinamia_hijo_id = ?, disnea_esfuerzo_hemodinamia = ?,
                     disnea_hijo_id = ?, sincope_hemodinamia = ?,
+                    scacest_texto = ?, -- <-- ACTUALIZACIÓN DEL NUEVO CAMPO
                     fecha_modificacion = CURRENT_TIMESTAMP
                 WHERE solicitud_paciente_id = ?`;
 
@@ -123,6 +124,7 @@ const saveEnfermedadActual = async (req, res) => {
                 angina_hijo_hemodinamia_id, scascest_hemodinamia,
                 scascest_hemodinamia_hijo_id, disnea_esfuerzo_hemodinamia,
                 disnea_hijo_id, sincope_hemodinamia,
+                scacest_texto, // <-- VALOR NUEVO
                 solicitud_paciente_id
             ];
 
@@ -141,14 +143,15 @@ const saveEnfermedadActual = async (req, res) => {
                     concamitante_id, frecuencia_sincope_id, aparicion_id, 
                     frecuencia_pre_sincope_id, clase_funcional_id, 
                     ross, nyha, otra_sintomatologia,
-                    retraso_pondoestatural, retraso_pondoestatural_mayor_p3,
+                    retraso_pondoestatural, retraso_pondoestatural_mayor_p3, 
                     retraso_pondoestatural_mayor_p10, retraso_pondoestatural_menor_p10,
                     retraso_combo_id, asintomatico_cardiovascular_hemodinamia, 
                     angina_estable_esfuerzo_hemodinamia, angina_hijo_hemodinamia_id, 
                     scascest_hemodinamia, scascest_hemodinamia_hijo_id, 
-                    disnea_esfuerzo_hemodinamia, disnea_hijo_id, sincope_hemodinamia
+                    disnea_esfuerzo_hemodinamia, disnea_hijo_id, sincope_hemodinamia,
+                    scacest_texto -- <-- NUEVO CAMPO EN INSERT
                 ) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
             const insertValues = [
                 solicitud_paciente_id, ultimo_peso_kg, ultimo_peso_fecha, peso_actual_kg,
@@ -164,7 +167,8 @@ const saveEnfermedadActual = async (req, res) => {
                 retraso_combo_id, asintomatico_cardiovascular_hemodinamia,
                 angina_estable_esfuerzo_hemodinamia, angina_hijo_hemodinamia_id,
                 scascest_hemodinamia, scascest_hemodinamia_hijo_id,
-                disnea_esfuerzo_hemodinamia, disnea_hijo_id, sincope_hemodinamia
+                disnea_esfuerzo_hemodinamia, disnea_hijo_id, sincope_hemodinamia,
+                scacest_texto // <-- VALOR NUEVO
             ];
 
             await db.query(insertSql, insertValues);

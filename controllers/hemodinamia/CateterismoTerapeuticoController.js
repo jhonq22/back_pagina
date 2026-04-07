@@ -135,7 +135,8 @@ const saveTerapeuticoGeneral = async (req, res) => {
         intervencion_realizada_id, // Este es el Array/JSON
         complicaciones_procedimiento_terapeutico, 
         complicaciones_acceso_terapeutico, 
-        sugerencia_terapeuticas_id 
+        sugerencia_terapeuticas_id,
+        territorio_angioplastia_id // <-- Nuevo campo extraído del body
     } = req.body;
 
     if (!solicitud_paciente_id) {
@@ -160,6 +161,7 @@ const saveTerapeuticoGeneral = async (req, res) => {
                     complicaciones_procedimiento_terapeutico = ?, 
                     complicaciones_acceso_terapeutico = ?, 
                     sugerencia_terapeuticas_id = ?,
+                    territorio_angioplastia_id = ?, -- <-- Nuevo campo en UPDATE
                     fecha_actualizacion = CURRENT_TIMESTAMP
                 WHERE solicitud_paciente_id = ?`,
                 [
@@ -168,6 +170,7 @@ const saveTerapeuticoGeneral = async (req, res) => {
                     complicaciones_procedimiento_terapeutico || null,
                     complicaciones_acceso_terapeutico || null,
                     sugerencia_terapeuticas_id || null,
+                    territorio_angioplastia_id || null, // <-- Valor del nuevo campo
                     solicitud_paciente_id
                 ]
             );
@@ -176,15 +179,16 @@ const saveTerapeuticoGeneral = async (req, res) => {
             // Si el padre NO existe, lo creamos con estos campos
             await db.query(
                 `INSERT INTO cateterismo_terapeutico_hemodinamia 
-                (solicitud_paciente_id, tecnica_cateterismo_terapeutico_id, intervencion_realizada_id, complicaciones_procedimiento_terapeutico, complicaciones_acceso_terapeutico, sugerencia_terapeuticas_id) 
-                VALUES (?, ?, ?, ?, ?, ?)`, 
+                (solicitud_paciente_id, tecnica_cateterismo_terapeutico_id, intervencion_realizada_id, complicaciones_procedimiento_terapeutico, complicaciones_acceso_terapeutico, sugerencia_terapeuticas_id, territorio_angioplastia_id) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)`, // <-- Un "?" extra para el nuevo campo
                 [
                     solicitud_paciente_id,
                     tecnica_cateterismo_terapeutico_id || null,
                     intervencionJson,
                     complicaciones_procedimiento_terapeutico || null,
                     complicaciones_acceso_terapeutico || null,
-                    sugerencia_terapeuticas_id || null
+                    sugerencia_terapeuticas_id || null,
+                    territorio_angioplastia_id || null // <-- Valor del nuevo campo
                 ]
             );
             return res.status(201).json({ message: 'Datos generales terapéuticos guardados con éxito' });
@@ -206,7 +210,7 @@ const getTerapeuticoGeneralBySolicitud = async (req, res) => {
         const [maestro] = await db.query(
             `SELECT id, solicitud_paciente_id, tecnica_cateterismo_terapeutico_id, 
                     intervencion_realizada_id, complicaciones_procedimiento_terapeutico, 
-                    complicaciones_acceso_terapeutico, sugerencia_terapeuticas_id 
+                    complicaciones_acceso_terapeutico, sugerencia_terapeuticas_id, territorio_angioplastia_id 
              FROM cateterismo_terapeutico_hemodinamia 
              WHERE solicitud_paciente_id = ?`, 
             [solicitudId]

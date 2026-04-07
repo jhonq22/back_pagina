@@ -265,6 +265,218 @@ const ReportesController = {
         }
     },
 
+    getSabanaHemodinamia: async (req, res) => {
+    try {
+        const { solicitud_id } = req.params;
+
+        if (!solicitud_id) {
+            return res.status(400).json({
+                success: false,
+                message: "El parámetro solicitud_id es requerido."
+            });
+        }
+
+        // 0. SOLICITUD OPERACIÓN (Se mantiene igual)
+        const [solicitudOperacionResult] = await db.query(`
+            SELECT 
+                p.primer_nombre, p.primer_apellido, p.cedula, p.correo, p.telefono_celular, p.codificacion_buen_gobierno,
+                s.tipo_marca_paso_id,
+                s.estatus_solicitud_id,
+                s.observacion_general,
+                es.nombre_estatus AS estatus_nombre,
+                tp.tipo_operacion AS operacion,
+                cs.descripcion AS nombre_hospital,
+                rm.primerNombre AS medico_nombre,
+                rm.primerApellido AS medico_apellido,
+                DATE_FORMAT(s.fecha_operacion, '%e de %M de %Y') AS fecha_operacion,
+                DATE_FORMAT(s.fecha_cita, '%e de %M de %Y') AS fecha_solicitud
+            FROM registrar_solicitud_pacientes s
+            INNER JOIN pacientes p ON s.paciente_id = p.id
+            LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
+            LEFT JOIN lista_centro_salud cs ON s.centro_salud_id = cs.id
+            LEFT JOIN tipo_operaciones tp ON s.tipo_operacion_id = tp.id
+            LEFT JOIN registro_medicos rm ON s.medico_id = rm.id
+            WHERE s.id = ? LIMIT 1
+        `, [solicitud_id]);
+
+        // 1. ENFERMEDAD ACTUAL (Campos específicos de Hemodinamia)
+        const [enfActualResult] = await db.query(`
+            SELECT 
+                asintomatico_cardiovascular_hemodinamia, 
+                angina_estable_esfuerzo_hemodinamia, 
+                angina_hijo_hemodinamia_id, 
+                scascest_hemodinamia, 
+                scascest_hemodinamia_hijo_id, 
+                disnea_esfuerzo_hemodinamia, 
+                disnea_hijo_id, 
+                sincope_hemodinamia, 
+                scacest_texto
+            FROM paciente_enfermedad_actual 
+            WHERE solicitud_paciente_id = ? LIMIT 1
+        `, [solicitud_id]);
+
+        // 2. ANTECEDENTES PERSONALES Y HÁBITOS (Hemodinamia + Quirúrgicos/Familiares)
+        const [antecedentesResult] = await db.query(`
+            SELECT 
+                quirurgico, familiares,
+                hta_hemodinamia, dislipidemia_hemodinamia, erc_hemodinamia, 
+                neurologico_conservado_hc_hemodinamia, sincope_hemodinamia, 
+                claudicacion_intermitente_hemodinamia, diabetes_mellitus_hemodinamia, 
+                diabetes_mellitus_hemodinamia_hijo, tabaquismo_hemodinamia, 
+                tabaquismo_hemodinamia_hijo, antecedentes_cardiopatia_isquemica_hemodinamia, 
+                scasest_angina_inestable_hijo_hemodinamia, im_sin_elevacion_st_hijo_hemodinamia, 
+                scacest_hijo_hemodinamia, alergia_yodo_hemodinamia, alergia_yodo_hemodinamia_hijo, 
+                alergia_medicamentos_hemodinamia, alergia_medicamentos_hemodinamia_hijo, 
+                otras_patologias_hemodinamia, otras_patologias_hemodinamia_hijo
+            FROM pacientes_antecedentes 
+            WHERE solicitud_paciente_id = ? LIMIT 1
+        `, [solicitud_id]);
+
+        // 3. EXAMEN FÍSICO, SIGNOS VITALES Y LABORATORIOS (Nueva tabla Hemodinamia)
+        const [fisicoLabsResult] = await db.query(`
+            SELECT 
+                peso, talla, fc, fr, ta,
+                ruidos_cardiacos_hemodinamia, soplos, soplos_areas_id_hemodinamia, soplos_intensidad_id_hemodinamia, crepitantes,
+                estado_pulso_id_hemodinamia, vias_acceso_id_hemodinamia,
+                hb_hemodinamia, hcto_hemodinamia, pqt_hemodinamia, leu_hemodinamia, 
+                glicemia_hemodinamia, urea_hemodinamia, creatinina_hemodinamia, 
+                hiv_hemodinamia, vdrl_hemodinamia, hepatitis_hemodinamia,
+                ckmb_hemodinamia, cktot_hemodinamia, troponina_hemodinamia,
+                pt_hemodinamia, ptt_hemodinamia, inr_hemodinamia
+            FROM examen_fisico_hemodinamia 
+            WHERE solicitud_paciente_id = ? LIMIT 1
+        `, [solicitud_id]);
+
+        // 4. PARACLÍNICOS (ECG y RX - Se mantienen iguales)
+        const [ecgResult] = await db.query(`
+            SELECT C.nombre_opcion AS ritmo, E.frecuencia_cardiaca AS fc, 
+                   E.eje_qrs AS eje, E.descripcion_hallazgos AS hallazgos
+            FROM paciente_paraclinico_ecg E 
+            LEFT JOIN paraclinico_catalogos C ON E.ritmo_id = C.id
+            WHERE E.solicitud_paciente_id = ? LIMIT 1
+        `, [solicitud_id]);
+
+        const [rxResult] = await db.query(`
+            SELECT ict, C.nombre_opcion AS flujo, 
+                   crecimiento_cavidades AS cavidades, otros_hallazgos AS otros
+            FROM paciente_paraclinico_rx R
+            LEFT JOIN paraclinico_catalogos C ON R.flujo_pulmonar_id = C.id
+            WHERE R.solicitud_paciente_id = ? LIMIT 1
+        `, [solicitud_id]);
+
+        // 5. PARACLÍNICOS (ECO - Nuevo query para Hemodinamia)
+        const [ecoResult] = await db.query(`
+            SELECT 
+                induccion_isquemia_tipo_id, frecuencia_cardiaca_maxima_estimada, 
+                resultado_isquemia_id, resultado_viabilidad_id, territorio_isquemia_id, 
+                territorio_viabilidad_id, estado_funcion_sistolica_id_hemodinamia, 
+                funcion_sistolica_id_hemodinamia, funcion_diastolica_id_hemodinamia, 
+                trastorno_contractilidad_json_hemodinamia, descripcion_eco_hemodinamia, 
+                descripcion_eco_doppler_hemodinamia
+            FROM paciente_paraclinico_eco 
+            WHERE solicitud_paciente_id = ? LIMIT 1
+        `, [solicitud_id]);
+
+        // Parseamos el JSON del trastorno de contractilidad si existe y viene como string
+        let trastornoContractilidad = {};
+        if (ecoResult[0] && ecoResult[0].trastorno_contractilidad_json_hemodinamia) {
+            try {
+                trastornoContractilidad = typeof ecoResult[0].trastorno_contractilidad_json_hemodinamia === 'string' 
+                    ? JSON.parse(ecoResult[0].trastorno_contractilidad_json_hemodinamia) 
+                    : ecoResult[0].trastorno_contractilidad_json_hemodinamia;
+            } catch (e) {
+                console.error("Error parseando trastorno_contractilidad_json_hemodinamia", e);
+            }
+        }
+
+        // Organizar los datos del examen físico/laboratorios para el JSON
+        const fisicoData = fisicoLabsResult[0] || {};
+
+        // 6. CONSTRUCCIÓN DEL JSON FINAL
+        const sabana_hemodinamia_completa = {
+            solicitud_operacion: solicitudOperacionResult[0] || null,
+            enfermedad_actual: enfActualResult[0] || null,
+            antecedentes: antecedentesResult[0] || null,
+            examen_fisico_laboratorios: {
+                signos_vitales: {
+                    peso: fisicoData.peso,
+                    talla: fisicoData.talla,
+                    fc: fisicoData.fc,
+                    fr: fisicoData.fr,
+                    ta: fisicoData.ta
+                },
+                inspeccion_cardiovascular: {
+                    ruidos_cardiacos: fisicoData.ruidos_cardiacos_hemodinamia,
+                    soplos: fisicoData.soplos,
+                    soplos_areas_id: fisicoData.soplos_areas_id_hemodinamia,
+                    soplos_intensidad_id: fisicoData.soplos_intensidad_id_hemodinamia,
+                    crepitantes: fisicoData.crepitantes
+                },
+                pulsos_arteriales: {
+                    estado_pulso_id: fisicoData.estado_pulso_id_hemodinamia,
+                    vias_acceso_id: fisicoData.vias_acceso_id_hemodinamia
+                },
+                laboratorios: {
+                    generales: {
+                        hb: fisicoData.hb_hemodinamia,
+                        hcto: fisicoData.hcto_hemodinamia,
+                        pqt: fisicoData.pqt_hemodinamia,
+                        leu: fisicoData.leu_hemodinamia,
+                        glicemia: fisicoData.glicemia_hemodinamia,
+                        urea: fisicoData.urea_hemodinamia,
+                        creatinina: fisicoData.creatinina_hemodinamia
+                    },
+                    serologia: {
+                        hiv: fisicoData.hiv_hemodinamia,
+                        vdrl: fisicoData.vdrl_hemodinamia,
+                        hepatitis: fisicoData.hepatitis_hemodinamia
+                    },
+                    perfil_isquemico: {
+                        ckmb: fisicoData.ckmb_hemodinamia,
+                        cktot: fisicoData.cktot_hemodinamia,
+                        troponina: fisicoData.troponina_hemodinamia
+                    },
+                    perfil_coagulacion: {
+                        pt: fisicoData.pt_hemodinamia,
+                        ptt: fisicoData.ptt_hemodinamia,
+                        inr: fisicoData.inr_hemodinamia
+                    }
+                }
+            },
+            paraclinicos: {
+                ecg: ecgResult[0] || null,
+                rx: rxResult[0] || null,
+                eco: ecoResult[0] ? {
+                    ...ecoResult[0],
+                    trastorno_contractilidad_json_hemodinamia: trastornoContractilidad
+                } : null
+            }
+        };
+
+        // Enviamos la respuesta al frontend
+        res.json({
+            success: true,
+            data: sabana_hemodinamia_completa
+        });
+
+    } catch (error) {
+        console.error("Error en ReportesController (Hemodinamia):", error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+},
+
+
+
+
+
+
+
+
+
+
     /**
      * Obtiene el reporte de Marcapasos
      */
