@@ -37,6 +37,9 @@ const saveExamenFisico = async (req, res) => {
     try {
         const [exist] = await db.query('SELECT id FROM examen_fisico_hemodinamia WHERE solicitud_paciente_id = ?', [solicitud_paciente_id]);
 
+        // Convertimos el campo a JSON string antes de guardarlo en la BD
+        const viasAccesoJson = vias_acceso_id_hemodinamia ? JSON.stringify(vias_acceso_id_hemodinamia) : null;
+
         if (exist.length > 0) {
             // UPDATE si ya existe el registro
             const updateSql = `
@@ -57,7 +60,7 @@ const saveExamenFisico = async (req, res) => {
                 peso, talla, fc, fr, ta,
                 ruidos_cardiacos_hemodinamia, soplos, soplos_areas_id_hemodinamia || null, 
                 soplos_intensidad_id_hemodinamia || null, crepitantes, estado_pulso_id_hemodinamia || null, 
-                vias_acceso_id_hemodinamia || null,
+                viasAccesoJson, // <-- CAMBIO APLICADO AQUÍ
                 hb_hemodinamia, hcto_hemodinamia, pqt_hemodinamia, leu_hemodinamia, 
                 glicemia_hemodinamia, urea_hemodinamia, creatinina_hemodinamia, 
                 hiv_hemodinamia, vdrl_hemodinamia, hepatitis_hemodinamia,
@@ -85,7 +88,8 @@ const saveExamenFisico = async (req, res) => {
             const values = [
                 solicitud_paciente_id, peso, talla, fc, fr, ta,
                 ruidos_cardiacos_hemodinamia, soplos, soplos_areas_id_hemodinamia || null, soplos_intensidad_id_hemodinamia || null,
-                crepitantes, estado_pulso_id_hemodinamia || null, vias_acceso_id_hemodinamia || null,
+                crepitantes, estado_pulso_id_hemodinamia || null, 
+                viasAccesoJson, // <-- CAMBIO APLICADO AQUÍ
                 hb_hemodinamia, hcto_hemodinamia, pqt_hemodinamia, leu_hemodinamia, 
                 glicemia_hemodinamia, urea_hemodinamia, creatinina_hemodinamia, 
                 hiv_hemodinamia, vdrl_hemodinamia, hepatitis_hemodinamia,

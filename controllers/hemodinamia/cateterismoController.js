@@ -6,9 +6,8 @@ const saveCateterismo = async (req, res) => {
         solicitud_paciente_id, 
         dominancia_id, 
         descripcion,
-        complicaciones_procedimiento,
-        complicaciones_acceso,
-        // --- Nuevos campos extraídos ---
+        complicaciones_procedimiento, // Se recibe como array para ser JSON
+        complicaciones_acceso,        // Se recibe como INT
         conclusiones_id,
         conclusiones_otros,
         sugerencia_diagnostico_id,
@@ -28,8 +27,10 @@ const saveCateterismo = async (req, res) => {
 
         let cateterismoId;
 
-        // Formatear array de conclusiones a JSON String
+        // --- FORMATEO DE CAMPOS ---
         const conclusionesJson = conclusiones_id ? JSON.stringify(conclusiones_id) : null;
+        // Se aplica stringify al MultiSelect
+        const compProcedimientoJson = complicaciones_procedimiento ? JSON.stringify(complicaciones_procedimiento) : null;
 
         if (exist.length > 0) {
             // 2. Si existe, hacemos UPDATE del maestro
@@ -49,8 +50,8 @@ const saveCateterismo = async (req, res) => {
                 [
                     dominancia_id || null, 
                     descripcion || null, 
-                    complicaciones_procedimiento || null, 
-                    complicaciones_acceso || null, 
+                    compProcedimientoJson,         // JSON stringified (MultiSelect)
+                    complicaciones_acceso || null, // INT directo (Autocomplete)
                     conclusionesJson,
                     conclusiones_otros || null,
                     sugerencia_diagnostico_id || null,
@@ -58,7 +59,7 @@ const saveCateterismo = async (req, res) => {
                 ]
             );
 
-            // 3. Limpiamos el detalle anterior para insertar el nuevo limpiamente
+            // 3. Limpiamos el detalle anterior
             await db.query(
                 'DELETE FROM cateterismo_detalle_arterias WHERE cateterismo_id = ?', 
                 [cateterismoId]
@@ -74,8 +75,8 @@ const saveCateterismo = async (req, res) => {
                     solicitud_paciente_id, 
                     dominancia_id || null, 
                     descripcion || null,
-                    complicaciones_procedimiento || null, 
-                    complicaciones_acceso || null,
+                    compProcedimientoJson,         // JSON stringified (MultiSelect)
+                    complicaciones_acceso || null, // INT directo (Autocomplete)
                     conclusionesJson,
                     conclusiones_otros || null,
                     sugerencia_diagnostico_id || null
@@ -85,7 +86,7 @@ const saveCateterismo = async (req, res) => {
             cateterismoId = result.insertId; 
         }
 
-        // 5. Insertamos el detalle (Las arterias evaluadas)
+        // 5. Insertamos el detalle (Arterias)
         if (arterias && arterias.length > 0) {
             const arteriasValues = arterias.map(a => [
                 cateterismoId,
@@ -147,4 +148,35 @@ const getCateterismoBySolicitud = async (req, res) => {
     }
 };
 
-module.exports = { saveCateterismo, getCateterismoBySolicitud };
+
+
+const activarTerapeutico = async (req, res) => {
+    const { solicitudId } = req.params;
+    
+    try {
+        const [rows] = await db.query(
+            'SELECT sugerencia_diagnostico_id FROM cateterismo_diagnostico_hemodinamia WHERE solicitud_paciente_id = ? LIMIT 1',
+            [solicitudId]
+        );
+
+        // Si no hay registro o la sugerencia no existe, es false
+        if (rows.length === 0 || !rows[0].sugerencia_diagnostico_id) {
+            return res.json(false);
+        }
+
+        const sugerenciaId = rows[0].sugerencia_diagnostico_id;
+
+        // Si es 48 o 51, devuelve true, de lo contrario false
+        if (sugerenciaId === 48 || sugerenciaId === 51) {
+            return res.json(true);
+        } else {
+            return res.json(false);
+        }
+        
+    } catch (error) {
+        console.error("Error en activarTerapeutico:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+module.exports = { saveCateterismo, getCateterismoBySolicitud, activarTerapeutico };

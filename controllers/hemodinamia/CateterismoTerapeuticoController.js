@@ -133,10 +133,10 @@ const saveTerapeuticoGeneral = async (req, res) => {
         solicitud_paciente_id, 
         tecnica_cateterismo_terapeutico_id, 
         intervencion_realizada_id, // Este es el Array/JSON
-        complicaciones_procedimiento_terapeutico, 
-        complicaciones_acceso_terapeutico, 
+        complicaciones_procedimiento_terapeutico, // Este es Array/JSON
+        complicaciones_acceso_terapeutico, // Este es INT
         sugerencia_terapeuticas_id,
-        territorio_angioplastia_id // <-- Nuevo campo extraído del body
+        territorio_angioplastia_id
     } = req.body;
 
     if (!solicitud_paciente_id) {
@@ -149,8 +149,9 @@ const saveTerapeuticoGeneral = async (req, res) => {
             [solicitud_paciente_id]
         );
 
-        // Convertimos el arreglo de intervenciones a un string JSON válido (si existe)
+        // Convertimos los arreglos a string JSON válido (si existen)
         const intervencionJson = intervencion_realizada_id ? JSON.stringify(intervencion_realizada_id) : null;
+        const compProcedimientoJson = complicaciones_procedimiento_terapeutico ? JSON.stringify(complicaciones_procedimiento_terapeutico) : null;
 
         if (exist.length > 0) {
             // Si el padre ya existe, actualizamos solo estos campos
@@ -161,16 +162,16 @@ const saveTerapeuticoGeneral = async (req, res) => {
                     complicaciones_procedimiento_terapeutico = ?, 
                     complicaciones_acceso_terapeutico = ?, 
                     sugerencia_terapeuticas_id = ?,
-                    territorio_angioplastia_id = ?, -- <-- Nuevo campo en UPDATE
+                    territorio_angioplastia_id = ?,
                     fecha_actualizacion = CURRENT_TIMESTAMP
                 WHERE solicitud_paciente_id = ?`,
                 [
                     tecnica_cateterismo_terapeutico_id || null,
                     intervencionJson,
-                    complicaciones_procedimiento_terapeutico || null,
-                    complicaciones_acceso_terapeutico || null,
+                    compProcedimientoJson, // <-- JSON Stringificado
+                    complicaciones_acceso_terapeutico || null, // <-- INT Directo
                     sugerencia_terapeuticas_id || null,
-                    territorio_angioplastia_id || null, // <-- Valor del nuevo campo
+                    territorio_angioplastia_id || null,
                     solicitud_paciente_id
                 ]
             );
@@ -180,15 +181,15 @@ const saveTerapeuticoGeneral = async (req, res) => {
             await db.query(
                 `INSERT INTO cateterismo_terapeutico_hemodinamia 
                 (solicitud_paciente_id, tecnica_cateterismo_terapeutico_id, intervencion_realizada_id, complicaciones_procedimiento_terapeutico, complicaciones_acceso_terapeutico, sugerencia_terapeuticas_id, territorio_angioplastia_id) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)`, // <-- Un "?" extra para el nuevo campo
+                VALUES (?, ?, ?, ?, ?, ?, ?)`, 
                 [
                     solicitud_paciente_id,
                     tecnica_cateterismo_terapeutico_id || null,
                     intervencionJson,
-                    complicaciones_procedimiento_terapeutico || null,
-                    complicaciones_acceso_terapeutico || null,
+                    compProcedimientoJson, // <-- JSON Stringificado
+                    complicaciones_acceso_terapeutico || null, // <-- INT Directo
                     sugerencia_terapeuticas_id || null,
-                    territorio_angioplastia_id || null // <-- Valor del nuevo campo
+                    territorio_angioplastia_id || null 
                 ]
             );
             return res.status(201).json({ message: 'Datos generales terapéuticos guardados con éxito' });
@@ -231,6 +232,17 @@ const getTerapeuticoGeneralBySolicitud = async (req, res) => {
             }
         } else {
             datosGenerales.intervencion_realizada_id = [];
+        }
+
+        // Parseamos el JSON de complicaciones del procedimiento para que el frontend lo pueda leer como arreglo
+        if (datosGenerales.complicaciones_procedimiento_terapeutico) {
+            try {
+                datosGenerales.complicaciones_procedimiento_terapeutico = JSON.parse(datosGenerales.complicaciones_procedimiento_terapeutico);
+            } catch (e) {
+                datosGenerales.complicaciones_procedimiento_terapeutico = [];
+            }
+        } else {
+            datosGenerales.complicaciones_procedimiento_terapeutico = [];
         }
 
         res.json(datosGenerales);

@@ -52,6 +52,7 @@ const saveAntecedentes = async (req, res) => {
         hta_hemodinamia,
         dislipidemia_hemodinamia,
         erc_hemodinamia,
+        erc_hemodinamia_hijo, 
         neurologico_conservado_hc_hemodinamia,
         sincope_hemodinamia,
         claudicacion_intermitente_hemodinamia,
@@ -80,13 +81,11 @@ const saveAntecedentes = async (req, res) => {
     }
 
     try {
-        // 1. Buscamos si ya existe ese TIPO específico para esa SOLICITUD
         const [exist] = await db.query(
             'SELECT id FROM pacientes_antecedentes WHERE solicitud_paciente_id = ? AND tipo = ?',
             [solicitud_paciente_id, tipo]
         );
 
-        // Convertimos arrays/objetos a JSON string para la BD
         const camposJson = {
             hpm: hospitalizacion_personales_mayores ? JSON.stringify(hospitalizacion_personales_mayores) : null,
             pb: patologia_base ? JSON.stringify(patologia_base) : null,
@@ -97,7 +96,7 @@ const saveAntecedentes = async (req, res) => {
         };
 
         if (exist.length > 0) {
-            // 2. Si existe, hacemos UPDATE
+            // 2. UPDATE
             const updateSql = `
                 UPDATE pacientes_antecedentes SET 
                     hospitalizacion_personales_mayores = ?, 
@@ -116,6 +115,7 @@ const saveAntecedentes = async (req, res) => {
                     hta_hemodinamia = ?,
                     dislipidemia_hemodinamia = ?,
                     erc_hemodinamia = ?,
+                    erc_hemodinamia_hijo = ?,
                     neurologico_conservado_hc_hemodinamia = ?,
                     sincope_hemodinamia = ?,
                     claudicacion_intermitente_hemodinamia = ?,
@@ -144,6 +144,7 @@ const saveAntecedentes = async (req, res) => {
                 neonatal_pan, neonatal_tan, neonatal_eg,
                 otras, estatus || 1,
                 hta_hemodinamia, dislipidemia_hemodinamia, erc_hemodinamia,
+                erc_hemodinamia_hijo, // <--- VALOR AGREGADO
                 neurologico_conservado_hc_hemodinamia, sincope_hemodinamia, claudicacion_intermitente_hemodinamia,
                 diabetes_mellitus_hemodinamia, diabetes_mellitus_hemodinamia_hijo,
                 tabaquismo_hemodinamia, tabaquismo_hemodinamia_hijo,
@@ -159,7 +160,7 @@ const saveAntecedentes = async (req, res) => {
             return res.json({ message: `Antecedentes ${tipo} actualizados con éxito` });
 
         } else {
-            // 3. Si no existe, hacemos INSERT
+            // 3. INSERT
             const insertSql = `
                 INSERT INTO pacientes_antecedentes 
                 (
@@ -167,7 +168,9 @@ const saveAntecedentes = async (req, res) => {
                     patologia_base, hospitalizacion_neonatal, habitos, 
                     quirurgico, descripcion_quirurgico, familiares, descripcion_familiares, tipo, 
                     neonatal_pan, neonatal_tan, neonatal_eg, otras, estatus,
-                    hta_hemodinamia, dislipidemia_hemodinamia, erc_hemodinamia, neurologico_conservado_hc_hemodinamia,
+                    hta_hemodinamia, dislipidemia_hemodinamia, erc_hemodinamia, 
+                    erc_hemodinamia_hijo, 
+                    neurologico_conservado_hc_hemodinamia,
                     sincope_hemodinamia, claudicacion_intermitente_hemodinamia,
                     diabetes_mellitus_hemodinamia, diabetes_mellitus_hemodinamia_hijo,
                     tabaquismo_hemodinamia, tabaquismo_hemodinamia_hijo,
@@ -177,7 +180,7 @@ const saveAntecedentes = async (req, res) => {
                     alergia_medicamentos_hemodinamia, alergia_medicamentos_hemodinamia_hijo,
                     otras_patologias_hemodinamia, otras_patologias_hemodinamia_hijo
                 ) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
             const insertValues = [
                 solicitud_paciente_id, camposJson.hpm, camposJson.pb,
@@ -186,7 +189,9 @@ const saveAntecedentes = async (req, res) => {
                 camposJson.f, descripcion_familiares || null,
                 tipo, neonatal_pan, neonatal_tan, neonatal_eg,
                 otras, estatus || 1,
-                hta_hemodinamia, dislipidemia_hemodinamia, erc_hemodinamia, neurologico_conservado_hc_hemodinamia,
+                hta_hemodinamia, dislipidemia_hemodinamia, erc_hemodinamia,
+                erc_hemodinamia_hijo, // <--- VALOR AGREGADO
+                neurologico_conservado_hc_hemodinamia,
                 sincope_hemodinamia, claudicacion_intermitente_hemodinamia,
                 diabetes_mellitus_hemodinamia, diabetes_mellitus_hemodinamia_hijo,
                 tabaquismo_hemodinamia, tabaquismo_hemodinamia_hijo,
