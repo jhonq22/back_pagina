@@ -22,18 +22,24 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+    // Agregamos tipos MIME para videos comunes (mp4, webm, ogg) además de las imágenes
+    const allowedTypes = [
+        'image/jpeg', 'image/png', 'image/jpg', 'image/webp',
+        'video/mp4', 'video/webm', 'video/ogg'
+    ];
+    
     if (allowedTypes.includes(file.mimetype)) {
         cb(null, true);
     } else {
-        cb(new Error('Tipo de archivo no permitido. Solo imágenes.'), false);
+        cb(new Error('Tipo de archivo no permitido. Solo se permiten imágenes o videos.'), false);
     }
 };
 
 const upload = multer({ 
     storage: storage,
     fileFilter: fileFilter,
-    limits: { fileSize: 1024 * 1024 * 5 } 
+    // AUMENTADO: 50MB porque los videos pesan mucho más (Ajusta este 50 si necesitas más megas)
+    limits: { fileSize: 1024 * 1024 * 50 } 
 });
 
 // ==========================================
@@ -53,17 +59,18 @@ const NoticiasController = {
 
     uploadMiddleware: upload,
 
-    // 1. Método para subir la imagen
+    // 1. Método para subir el archivo (Imagen o Video)
     uploadImagen: (req, res) => {
         if (!req.file) {
-            return res.status(400).json({ error: 'No se recibió ninguna imagen' });
+            return res.status(400).json({ error: 'No se recibió ningún archivo' });
         }
         
         res.status(200).json({
-            message: 'Imagen subida con éxito',
-            ruta_imagen: '/api/noticias/ver/', // Ajustado a la ruta de visualización
+            message: 'Archivo subido con éxito',
+            ruta_imagen: '/api/noticias/ver/', // Mantenemos el nombre ruta_imagen por compatibilidad con tu BD
             nombre_archivo: req.file.filename,
-            nombre_original: req.file.originalname
+            nombre_original: req.file.originalname,
+            mimetype: req.file.mimetype // Retornamos el mimetype para que el frontend sepa si es video o imagen
         });
     },
 
@@ -95,7 +102,7 @@ const NoticiasController = {
         }
     },
 
-    // 4. Guardar o Actualizar Noticia (INCLUYENDO NUEVOS CAMPOS)
+    // 4. Guardar o Actualizar Noticia
     saveNoticia: async (req, res) => {
         const { 
             id, titulo, body, titulo_corto, estatus, 
@@ -179,6 +186,7 @@ const NoticiasController = {
             res.status(500).json({ error: error.message });
         }
     },
+
     getNoticiaById: async (req, res) => {
         const { id } = req.params;
         try {
@@ -188,7 +196,7 @@ const NoticiasController = {
                 return res.status(404).json({ error: 'Noticia no encontrada' });
             }
             
-            res.json(rows[0]); // Devolvemos el objeto directo, no un array
+            res.json(rows[0]); 
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
@@ -197,7 +205,7 @@ const NoticiasController = {
     // API 2: Obtener solo las noticias destacadas
     getNoticiasDestacadas: async (req, res) => {
         try {
-            // Buscamos donde destacada = 1 (true en MySQL) y que no estén eliminadas lógicamente si usas estatus
+            // Buscamos donde destacada = 1 (true en MySQL) y que no estén eliminadas lógicamente
             const query = `
                 SELECT * FROM noticias 
                 WHERE destacada = 1 AND estatus != 'deleted' 
@@ -211,8 +219,6 @@ const NoticiasController = {
     },
 
     // API 3: Actualizar una noticia (Alternativa explícita a saveNoticia)
-    // Nota: Tu función saveNoticia ya hace esto si le pasas un ID, pero si prefieres 
-    // un endpoint PUT específico (ej: /api/noticias/update/:id), aquí lo tienes.
     updateNoticia: async (req, res) => {
         const { id } = req.params;
         const { 
@@ -229,7 +235,6 @@ const NoticiasController = {
         const isDestacada = destacada === true || destacada === 'true' || destacada === 1 ? 1 : 0;
 
         try {
-            // Verificar si el slug ya existe en OTRA noticia
             const [existe] = await db.query('SELECT id FROM noticias WHERE slug = ? AND id != ?', [slug, id]);
             if (existe.length > 0) {
                 return res.status(400).json({ error: 'Ya existe una noticia con un título similar' });
@@ -259,7 +264,80 @@ const NoticiasController = {
         }
     },
 
-    
+    // ==========================================
+    // SECCIÓN: MÓDULO ESTRUCTURA (Misión / Visión)
+    // ==========================================
+
+    // 1. Obtener todas las estructuras
+    getEstructuras: async (req, res) => {
+        try {
+            const query = 'SELECT * FROM estructura ORDER BY created_at DESC';
+            const [rows] = await db.query(query);
+            res.json(rows);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    },
+
+    // 2. Obtener una estructura específica por su TIPO
+    getEstructuraByTipo: async (req, res) => {
+        const { tipo } = req.params;
+        try {
+            const [rows] = await db.query('SELECT * FROM estructura WHERE tipo = ? LIMIT 1', [tipo]);
+            
+            if (rows.length === 0) {
+                return res.status(404).json({ error: `Estructura de tipo '${tipo}' no encontrada` });
+            }
+            
+            res.json(rows[0]);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    },
+
+    // 3. Crear o Actualizar Estructura (Dinámico)
+    saveEstructura: async (req, res) => {
+        const { id, titulo, body, tipo, estatus } = req.body;
+
+        if (!titulo || !body || !tipo) {
+            return res.status(400).json({ error: 'El título, contenido (body) y tipo son obligatorios' });
+        }
+
+        const isActivo = estatus === false || estatus === 'false' || estatus === 0 ? 0 : 1;
+
+        try {
+            if (id) {
+                const queryUpdate = "UPDATE estructura SET titulo = ?, body = ?, tipo = ?, estatus = ? WHERE id = ?";
+                const [result] = await db.query(queryUpdate, [titulo, body, tipo, isActivo, id]);
+                
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({ error: 'Registro no encontrado para actualizar' });
+                }
+                return res.json({ message: 'Estructura actualizada con éxito' });
+            } else {
+                const queryInsert = "INSERT INTO estructura (titulo, body, tipo, estatus) VALUES (?, ?, ?, ?)";
+                const [result] = await db.query(queryInsert, [titulo, body, tipo, isActivo]);
+                return res.status(201).json({ message: 'Estructura creada con éxito', id: result.insertId });
+            }
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    },
+
+    // 4. Eliminar Estructura
+    deleteEstructura: async (req, res) => {
+        const { id } = req.params;
+        try {
+            const [result] = await db.query('DELETE FROM estructura WHERE id = ?', [id]);
+            
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'La estructura no existe' });
+            }
+            res.json({ message: 'Estructura eliminada correctamente' });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
 };
 
 module.exports = NoticiasController;

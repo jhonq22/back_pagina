@@ -2,20 +2,27 @@ const express = require('express');
 const router = express.Router();
 const NoticiasController = require('../../controllers/intranet/NoticiasController');
 
-// --- Archivos y Subidas ---
+// 1. ARCHIVOS Y SUBIDAS
 router.post('/upload', NoticiasController.uploadMiddleware.single('imagen'), NoticiasController.uploadImagen);
 router.get('/ver/:nombre', NoticiasController.verArchivo);
 
-// --- Consultas (GET) ---
+// 2. RUTAS DE ESTRUCTURA (Deben ir ARRIBA porque son rutas específicas)
+router.get('/estructura', NoticiasController.getEstructuras);
+router.get('/estructura/tipo/:tipo', NoticiasController.getEstructuraByTipo); 
+router.post('/estructura', NoticiasController.saveEstructura); 
+router.delete('/estructura/:id', NoticiasController.deleteEstructura);
+
+// 3. CONSULTAS DE NOTICIAS (Rutas estáticas primero)
 router.get('/list', NoticiasController.getNoticias);
-router.get('/destacadas', NoticiasController.getNoticiasDestacadas); // NUEVA
-router.get('/:id', NoticiasController.getNoticiaById); // NUEVA (Debe ir después de las rutas estáticas)
+router.get('/destacadas', NoticiasController.getNoticiasDestacadas);
 
-// --- Inserción y Actualización (POST / PUT) ---
+// 4. RUTAS CON PARÁMETROS DINÁMICOS (Siempre al final)
+// Si esta ruta estuviera arriba, se "comería" a /list, /destacadas y /estructura
+router.get('/:id', NoticiasController.getNoticiaById); 
+
+// 5. OPERACIONES DE ESCRITURA
 router.post('/save', NoticiasController.saveNoticia);
-router.put('/update/:id', NoticiasController.updateNoticia); // NUEVA (Opcional, si no usas saveNoticia para actualizar)
-
-// --- Eliminación (DELETE) ---
+router.put('/update/:id', NoticiasController.updateNoticia);
 router.delete('/delete/:id', NoticiasController.deleteNoticia);
 
 module.exports = router;

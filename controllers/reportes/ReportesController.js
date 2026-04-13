@@ -320,7 +320,7 @@ getSabanaHemodinamia: async (req, res) => {
             SELECT 
                 quirurgico, familiares,
                 hta_hemodinamia, dislipidemia_hemodinamia, erc_hemodinamia, 
-                erc_hemodinamia_hijo, /* <-- NUEVO CAMPO AGREGADO AQUÍ */
+                erc_hemodinamia_hijo,
                 neurologico_conservado_hc_hemodinamia, sincope_hemodinamia, 
                 claudicacion_intermitente_hemodinamia, diabetes_mellitus_hemodinamia, 
                 diabetes_mellitus_hemodinamia_hijo, tabaquismo_hemodinamia, 
@@ -333,7 +333,7 @@ getSabanaHemodinamia: async (req, res) => {
             WHERE solicitud_paciente_id = ? LIMIT 1
         `, [solicitud_id]);
 
-    // 3. EXAMEN FÍSICO, SIGNOS VITALES Y LABORATORIOS (Con LEFT JOINS para traer los nombres)
+        // 3. EXAMEN FÍSICO, SIGNOS VITALES Y LABORATORIOS
         const [fisicoLabsResult] = await db.query(`
             SELECT 
                 e.peso, e.talla, e.fc, e.fr, e.ta,
@@ -385,33 +385,45 @@ getSabanaHemodinamia: async (req, res) => {
             WHERE solicitud_paciente_id = ? LIMIT 1
         `, [solicitud_id]);
 
-        // Parseamos el JSON del trastorno de contractilidad si existe y viene como string
+        // 6. INDICACIONES (NUEVA SECCIÓN AGREGADA)
+        const [indicacionesResult] = await db.query(`
+            SELECT 
+                i.hb, i.gb, i.plaquetas, i.creatinina, i.urea, i.diagnostico, i.pt, i.ppt, i.glicemia,
+                fc.descripcion AS frecuencia_cardiaca_label,
+                tc.descripcion AS trastornos_conduccion_label,
+                tf.descripcion AS trastornos_funcionales_label,
+                to2.descripcion AS trastornos_otros_label,
+                ci.descripcion AS cardiopatia_isquemica_label
+            FROM indicaciones_implante_nuevos i
+            LEFT JOIN lista_relacionado_frecuencia_cardiaca fc ON i.relacionado_frecuencia_cardiaca_id = fc.id
+            LEFT JOIN lista_relacionado_trastornos_conduccion tc ON i.relacionado_trastornos_conduccion_id = tc.id
+            LEFT JOIN lista_relacionado_trastornos_funcionales tf ON i.relacionado_trastornos_funcionales_id = tf.id
+            LEFT JOIN lista_relacionado_trastornos_otros to2 ON i.relacionado_trastornos_otros_id = to2.id
+            LEFT JOIN listado_cardiopatia_isquemica ci ON i.relacionado_cardiopatia_isquemica_id = ci.id
+            WHERE i.solicitud_paciente_id = ? AND i.estatus = 1 LIMIT 1
+        `, [solicitud_id]);
+
+        // --- PARSEOS Y LIMPIEZA ---
         let trastornoContractilidad = {};
         if (ecoResult[0] && ecoResult[0].trastorno_contractilidad_json_hemodinamia) {
             try {
                 trastornoContractilidad = typeof ecoResult[0].trastorno_contractilidad_json_hemodinamia === 'string' 
                     ? JSON.parse(ecoResult[0].trastorno_contractilidad_json_hemodinamia) 
                     : ecoResult[0].trastorno_contractilidad_json_hemodinamia;
-            } catch (e) {
-                console.error("Error parseando trastorno_contractilidad_json_hemodinamia", e);
-            }
+            } catch (e) { console.error("Error parseando eco json", e); }
         }
 
         const fisicoData = fisicoLabsResult[0] || {};
-
-        // Parseamos el JSON de vias_acceso_id_hemodinamia (Nuevo Cambio)
         let viasAccesoParseadas = [];
         if (fisicoData.vias_acceso_id_hemodinamia) {
             try {
                 viasAccesoParseadas = typeof fisicoData.vias_acceso_id_hemodinamia === 'string'
                     ? JSON.parse(fisicoData.vias_acceso_id_hemodinamia)
                     : fisicoData.vias_acceso_id_hemodinamia;
-            } catch (e) {
-                console.error("Error parseando vias_acceso_id_hemodinamia", e);
-            }
+            } catch (e) { console.error("Error parseando vias", e); }
         }
 
-        // 6. CONSTRUCCIÓN DEL JSON FINAL
+        // 7. CONSTRUCCIÓN DEL JSON FINAL
         const sabana_hemodinamia_completa = {
             solicitud_operacion: solicitudOperacionResult[0] || null,
             enfermedad_actual: enfActualResult[0] || null,
@@ -433,7 +445,7 @@ getSabanaHemodinamia: async (req, res) => {
                 },
                 pulsos_arteriales: {
                     estado_pulso_id: fisicoData.estado_pulso_id_hemodinamia,
-                    vias_acceso_id: viasAccesoParseadas // <-- ARRAY PARSEADO AQUÍ
+                    vias_acceso_id: viasAccesoParseadas
                 },
                 laboratorios: {
                     generales: {
@@ -469,7 +481,9 @@ getSabanaHemodinamia: async (req, res) => {
                     ...ecoResult[0],
                     trastorno_contractilidad_json_hemodinamia: trastornoContractilidad
                 } : null
-            }
+            },
+            // NUEVA PROPIEDAD AGREGADA AQUÍ
+            indicaciones: indicacionesResult[0] || null 
         };
 
         // Enviamos la respuesta al frontend

@@ -17,10 +17,11 @@ const indicacionesController = {
                 [solicitud_paciente_id]
             );
 
+            // Función para convertir undefined a null para que COALESCE funcione correctamente
+            const safeVal = (val) => val === undefined ? null : val;
+
             if (existing.length > 0) {
                 // --- MODO UPDATE PARCIAL CON COALESCE ---
-                // Si el valor enviado es undefined (no se envió) lo tratamos como NULL.
-                // COALESCE(?, columna_actual) => Si '?' es NULL, mantiene 'columna_actual'.
                 const recordId = existing[0].id;
                 
                 const updateQuery = `
@@ -29,6 +30,7 @@ const indicacionesController = {
                         relacionado_trastornos_conduccion_id = COALESCE(?, relacionado_trastornos_conduccion_id), 
                         relacionado_trastornos_funcionales_id = COALESCE(?, relacionado_trastornos_funcionales_id), 
                         relacionado_trastornos_otros_id = COALESCE(?, relacionado_trastornos_otros_id), 
+                        relacionado_cardiopatia_isquemica_id = COALESCE(?, relacionado_cardiopatia_isquemica_id),
                         hb = COALESCE(?, hb), 
                         gb = COALESCE(?, gb), 
                         plaquetas = COALESCE(?, plaquetas), 
@@ -43,14 +45,16 @@ const indicacionesController = {
                         audit_dep_id = COALESCE(?, audit_dep_id)
                     WHERE id = ?`;
 
-                // Convertimos undefined a null para que COALESCE funcione correctamente
-                const safeVal = (val) => val === undefined ? null : val;
-
                 const updateValues = [
-                    safeVal(data.relacionado_frecuencia_cardiaca_id), safeVal(data.relacionado_trastornos_conduccion_id),
-                    safeVal(data.relacionado_trastornos_funcionales_id), safeVal(data.relacionado_trastornos_otros_id),
-                    safeVal(data.hb), safeVal(data.gb), safeVal(data.plaquetas), safeVal(data.creatinina), safeVal(data.urea),
-                    safeVal(data.diagnostico), safeVal(data.pt), safeVal(data.ppt), safeVal(data.glicemia), 
+                    safeVal(data.relacionado_frecuencia_cardiaca_id), 
+                    safeVal(data.relacionado_trastornos_conduccion_id),
+                    safeVal(data.relacionado_trastornos_funcionales_id), 
+                    safeVal(data.relacionado_trastornos_otros_id),
+                    safeVal(data.relacionado_cardiopatia_isquemica_id),
+                    safeVal(data.hb), safeVal(data.gb), safeVal(data.plaquetas), 
+                    safeVal(data.creatinina), safeVal(data.urea),
+                    safeVal(data.diagnostico), safeVal(data.pt), safeVal(data.ppt), 
+                    safeVal(data.glicemia), 
                     safeVal(data.audit_usu_id), safeVal(data.audit_ip), safeVal(data.audit_dep_id), 
                     recordId
                 ];
@@ -62,11 +66,10 @@ const indicacionesController = {
                 // --- MODO INSERT (Primer guardado) ---
                 const insertQuery = `INSERT INTO indicaciones_implante_nuevos 
                     (solicitud_paciente_id, relacionado_frecuencia_cardiaca_id, relacionado_trastornos_conduccion_id, 
-                    relacionado_trastornos_funcionales_id, relacionado_trastornos_otros_id, hb, gb, plaquetas, 
-                    creatinina, urea, diagnostico, pt, ppt, glicemia, audit_usu_id, audit_ip, audit_dep_id) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-
-                const safeVal = (val) => val === undefined ? null : val;
+                    relacionado_trastornos_funcionales_id, relacionado_trastornos_otros_id, relacionado_cardiopatia_isquemica_id,
+                    hb, gb, plaquetas, creatinina, urea, diagnostico, pt, ppt, glicemia, 
+                    audit_usu_id, audit_ip, audit_dep_id) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
                 const insertValues = [
                     solicitud_paciente_id, 
@@ -74,9 +77,11 @@ const indicacionesController = {
                     safeVal(data.relacionado_trastornos_conduccion_id), 
                     safeVal(data.relacionado_trastornos_funcionales_id),
                     safeVal(data.relacionado_trastornos_otros_id), 
+                    safeVal(data.relacionado_cardiopatia_isquemica_id),
                     safeVal(data.hb), safeVal(data.gb), safeVal(data.plaquetas),
                     safeVal(data.creatinina), safeVal(data.urea), 
-                    safeVal(data.diagnostico), safeVal(data.pt), safeVal(data.ppt), safeVal(data.glicemia),
+                    safeVal(data.diagnostico), safeVal(data.pt), safeVal(data.ppt), 
+                    safeVal(data.glicemia),
                     safeVal(data.audit_usu_id), safeVal(data.audit_ip), safeVal(data.audit_dep_id)
                 ];
 
@@ -112,7 +117,7 @@ const indicacionesController = {
         }
     },
 
-    // Actualizar por ID específico (También le aplicamos COALESCE por seguridad)
+    // Actualizar por ID específico
     update: async (req, res) => {
         try {
             const { id } = req.params;
@@ -124,6 +129,7 @@ const indicacionesController = {
                     relacionado_trastornos_conduccion_id = COALESCE(?, relacionado_trastornos_conduccion_id), 
                     relacionado_trastornos_funcionales_id = COALESCE(?, relacionado_trastornos_funcionales_id), 
                     relacionado_trastornos_otros_id = COALESCE(?, relacionado_trastornos_otros_id), 
+                    relacionado_cardiopatia_isquemica_id = COALESCE(?, relacionado_cardiopatia_isquemica_id),
                     hb = COALESCE(?, hb), 
                     gb = COALESCE(?, gb), 
                     plaquetas = COALESCE(?, plaquetas), 
@@ -140,10 +146,15 @@ const indicacionesController = {
             const safeVal = (val) => val === undefined ? null : val;
 
             const values = [
-                safeVal(data.relacionado_frecuencia_cardiaca_id), safeVal(data.relacionado_trastornos_conduccion_id),
-                safeVal(data.relacionado_trastornos_funcionales_id), safeVal(data.relacionado_trastornos_otros_id),
-                safeVal(data.hb), safeVal(data.gb), safeVal(data.plaquetas), safeVal(data.creatinina), safeVal(data.urea),
-                safeVal(data.diagnostico), safeVal(data.pt), safeVal(data.ppt), safeVal(data.glicemia),
+                safeVal(data.relacionado_frecuencia_cardiaca_id), 
+                safeVal(data.relacionado_trastornos_conduccion_id),
+                safeVal(data.relacionado_trastornos_funcionales_id), 
+                safeVal(data.relacionado_trastornos_otros_id),
+                safeVal(data.relacionado_cardiopatia_isquemica_id),
+                safeVal(data.hb), safeVal(data.gb), safeVal(data.plaquetas), 
+                safeVal(data.creatinina), safeVal(data.urea),
+                safeVal(data.diagnostico), safeVal(data.pt), safeVal(data.ppt), 
+                safeVal(data.glicemia),
                 safeVal(data.audit_usu_id), safeVal(data.audit_ip), id
             ];
 
