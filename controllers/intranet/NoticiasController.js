@@ -8,7 +8,9 @@ const fs = require('fs');
 // ==========================================
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const dir = 'Noticias/';
+        // Leemos si el front envió un parámetro ?folder=cintillos
+        const dir = req.query.folder === 'cintillos' ? 'Cintillos/' : 'Noticias/';
+        
         // Si la carpeta no existe, la crea automáticamente
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
@@ -75,13 +77,17 @@ const NoticiasController = {
     },
 
     // 2. Nueva función para VER el archivo físicamente
-    verArchivo: (req, res) => {
+verArchivo: (req, res) => {
         const { nombre } = req.params;
-        // Asumiendo que el controlador está en controllers/intranet/
-        const pathImagen = path.join(__dirname, '../../Noticias', nombre);
+        
+        const pathNoticia = path.join(__dirname, '../../Noticias', nombre);
+        const pathCintillo = path.join(__dirname, '../../Cintillos', nombre);
 
-        if (fs.existsSync(pathImagen)) {
-            return res.sendFile(pathImagen);
+        // Verificamos en qué carpeta existe la imagen y la devolvemos
+        if (fs.existsSync(pathNoticia)) {
+            return res.sendFile(pathNoticia);
+        } else if (fs.existsSync(pathCintillo)) {
+            return res.sendFile(pathCintillo);
         } else {
             return res.status(404).json({ error: 'El archivo no existe en el servidor' });
         }
@@ -265,58 +271,70 @@ const NoticiasController = {
     },
 
     // ==========================================
-    // SECCIÓN: MÓDULO ESTRUCTURA (Misión / Visión)
-    // ==========================================
+    // SECCIÓN: MÓDULO ESTRUCTURA (Misión / Visión / Cintillo)
+    // ==========================================
 
-    // 1. Obtener todas las estructuras
-    getEstructuras: async (req, res) => {
-        try {
-            const query = 'SELECT * FROM estructura ORDER BY created_at DESC';
-            const [rows] = await db.query(query);
-            res.json(rows);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    },
+    // 1. Obtener todas las estructuras
+    getEstructuras: async (req, res) => {
+        try {
+            // Al usar SELECT *, automáticamente traerá ruta_imagen y nombre_archivo
+            const query = 'SELECT * FROM estructura ORDER BY created_at DESC';
+            const [rows] = await db.query(query);
+            res.json(rows);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    },
 
-    // 2. Obtener una estructura específica por su TIPO
-    getEstructuraByTipo: async (req, res) => {
-        const { tipo } = req.params;
-        try {
-            const [rows] = await db.query('SELECT * FROM estructura WHERE tipo = ? LIMIT 1', [tipo]);
-            
-            if (rows.length === 0) {
-                return res.status(404).json({ error: `Estructura de tipo '${tipo}' no encontrada` });
-            }
-            
-            res.json(rows[0]);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    },
+    // 2. Obtener una estructura específica por su TIPO
+    getEstructuraByTipo: async (req, res) => {
+        const { tipo } = req.params;
+        try {
+            const [rows] = await db.query('SELECT * FROM estructura WHERE tipo = ? LIMIT 1', [tipo]);
+            
+            if (rows.length === 0) {
+                return res.status(404).json({ error: `Estructura de tipo '${tipo}' no encontrada` });
+            }
+            
+            res.json(rows[0]);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    },
 
-    // 3. Crear o Actualizar Estructura (Dinámico)
+    // 3. Crear o Actualizar Estructura (Dinámico - Ahora soporta imágenes)
+
     saveEstructura: async (req, res) => {
-        const { id, titulo, body, tipo, estatus } = req.body;
+        // Agregamos ruta_imagen y nombre_archivo al destructuring
+        const { id, titulo, body, tipo, estatus, ruta_imagen, nombre_archivo } = req.body;
 
-        if (!titulo || !body || !tipo) {
-            return res.status(400).json({ error: 'El título, contenido (body) y tipo son obligatorios' });
+        // Validación básica
+        if (!titulo || !tipo) {
+            return res.status(400).json({ error: 'El título y el tipo son obligatorios' });
         }
 
         const isActivo = estatus === false || estatus === 'false' || estatus === 0 ? 0 : 1;
 
         try {
             if (id) {
-                const queryUpdate = "UPDATE estructura SET titulo = ?, body = ?, tipo = ?, estatus = ? WHERE id = ?";
-                const [result] = await db.query(queryUpdate, [titulo, body, tipo, isActivo, id]);
+                // UPDATE en una sola línea limpia (sin saltos ni espacios raros)
+                const queryUpdate = "UPDATE estructura SET titulo = ?, body = ?, tipo = ?, estatus = ?, ruta_imagen = ?, nombre_archivo = ? WHERE id = ?";
+                
+                const [result] = await db.query(queryUpdate, [
+                    titulo, body || '', tipo, isActivo, ruta_imagen || null, nombre_archivo || null, id
+                ]);
                 
                 if (result.affectedRows === 0) {
                     return res.status(404).json({ error: 'Registro no encontrado para actualizar' });
                 }
                 return res.json({ message: 'Estructura actualizada con éxito' });
             } else {
-                const queryInsert = "INSERT INTO estructura (titulo, body, tipo, estatus) VALUES (?, ?, ?, ?)";
-                const [result] = await db.query(queryInsert, [titulo, body, tipo, isActivo]);
+                // INSERT en una sola línea limpia
+                const queryInsert = "INSERT INTO estructura (titulo, body, tipo, estatus, ruta_imagen, nombre_archivo) VALUES (?, ?, ?, ?, ?, ?)";
+                
+                const [result] = await db.query(queryInsert, [
+                    titulo, body || '', tipo, isActivo, ruta_imagen || null, nombre_archivo || null
+                ]);
                 return res.status(201).json({ message: 'Estructura creada con éxito', id: result.insertId });
             }
         } catch (error) {
@@ -324,20 +342,35 @@ const NoticiasController = {
         }
     },
 
-    // 4. Eliminar Estructura
+    // 4. Eliminar Estructura (Ahora borra el archivo físico si existe)
+   // 4. Eliminar Estructura
     deleteEstructura: async (req, res) => {
         const { id } = req.params;
         try {
+            // Buscamos si la estructura tiene un archivo asociado
+            const [rows] = await db.query('SELECT nombre_archivo FROM estructura WHERE id = ?', [id]);
+            
+            if (rows.length > 0 && rows[0].nombre_archivo) {
+                // AHORA APUNTA A LA CARPETA CINTILLOS
+                const filePath = path.join(__dirname, '../../Cintillos', rows[0].nombre_archivo);
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                }
+            }
+
+            // Eliminamos el registro de la base de datos
             const [result] = await db.query('DELETE FROM estructura WHERE id = ?', [id]);
             
             if (result.affectedRows === 0) {
                 return res.status(404).json({ error: 'La estructura no existe' });
             }
-            res.json({ message: 'Estructura eliminada correctamente' });
+            res.json({ message: 'Estructura y archivo eliminados correctamente' });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
     }
+
+  
 };
 
 module.exports = NoticiasController;
