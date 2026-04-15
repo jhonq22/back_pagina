@@ -503,6 +503,118 @@ getSabanaHemodinamia: async (req, res) => {
 
 
 
+reporteCaterismo: async (req, res) => {
+        try {
+            // Aceptamos solicitudId o solicitud_id
+            const solicitud_id = req.params.solicitud_id || req.params.solicitudId;
+
+            if (!solicitud_id) {
+                return res.status(400).json({
+                    success: false,
+                    message: "El parámetro solicitud_id es requerido."
+                });
+            }
+
+            // 0. OBTENER DATOS DEL PACIENTE (Edad, Fecha de Nacimiento y Sexo/Género)
+            const [pacienteResult] = await db.query(`
+                SELECT 
+                    p.edad, 
+                    p.fecha_nacimiento, 
+                    p.sexo AS genero
+                FROM registrar_solicitud_pacientes s
+                INNER JOIN pacientes p ON s.paciente_id = p.id
+                WHERE s.id = ? LIMIT 1
+            `, [solicitud_id]);
+
+            const pacienteData = pacienteResult[0] || {};
+
+            // 1. OBTENER EL MAESTRO DE CATETERISMO (Ajustado JOIN de dominancia)
+            const [cateterismoResult] = await db.query(`
+                SELECT 
+                    c.*,
+                    dom.descripcion AS dominancia, 
+                    sug.nombre AS sugerencias,
+                    comp.nombre AS complicacion_acceso_nombre
+                FROM cateterismo_diagnostico_hemodinamia c
+                LEFT JOIN lista_dominancia dom ON c.dominancia_id = dom.id 
+                LEFT JOIN catalogo_hemodinamia sug ON c.sugerencia_diagnostico_id = sug.id
+                LEFT JOIN catalogo_hemodinamia comp ON c.complicaciones_acceso = comp.id
+                WHERE c.solicitud_paciente_id = ? AND c.estatus = 1 LIMIT 1
+            `, [solicitud_id]);
+
+            let cateterismoMaster = cateterismoResult[0] || null;
+            let arteriasDetalle = [];
+
+            // 2. SI EXISTE EL MAESTRO, BUSCAMOS SUS ARTERIAS (DETALLE)
+            if (cateterismoMaster) {
+                const [detalleResult] = await db.query(`
+                    SELECT 
+                        a.*,
+                        cal.nombre AS calibre,
+                        les.nombre AS tipo_lesion,
+                        seg.nombre AS ubicacion,
+                        tip.nombre AS tipo,
+                        flu.nombre AS flujo_timi
+                    FROM cateterismo_detalle_arterias a
+                    LEFT JOIN catalogo_hemodinamia cal ON a.calibre_id = cal.id
+                    LEFT JOIN catalogo_hemodinamia les ON a.lesion_id = les.id
+                    LEFT JOIN catalogo_hemodinamia seg ON a.segmento_id = seg.id
+                    LEFT JOIN catalogo_hemodinamia tip ON a.tipo_id = tip.id
+                    LEFT JOIN catalogo_hemodinamia flu ON a.flujo_id = flu.id
+                    WHERE a.cateterismo_id = ?
+                `, [cateterismoMaster.id]);
+                
+                arteriasDetalle = detalleResult;
+
+                // --- ADAPTACIONES PARA EL PDF ---
+                cateterismoMaster.descripcion_texto = cateterismoMaster.descripcion;
+                cateterismoMaster.conclusion = cateterismoMaster.conclusiones_otros || '';
+                cateterismoMaster.complicacion = cateterismoMaster.complicacion_acceso_nombre || '';
+            }
+
+            // 3. OBTENER EXAMEN FÍSICO Y SIGNOS VITALES
+            const [fisicoLabsResult] = await db.query(`
+                SELECT 
+                    e.peso, e.talla, e.fc, e.fr, e.ta
+                FROM examen_fisico_hemodinamia e
+                WHERE e.solicitud_paciente_id = ? LIMIT 1
+            `, [solicitud_id]);
+
+            const fisicoData = fisicoLabsResult[0] || {};
+
+            // 4. CONSTRUCCIÓN DEL JSON FINAL ESTRUCTURADO
+            const reporte_cateterismo_completo = {
+                paciente: pacienteData, // <- Inyectamos los datos del paciente aquí
+                cateterismo: cateterismoMaster ? {
+                    ...cateterismoMaster,
+                    arterias: arteriasDetalle
+                } : null,
+
+                examen_fisico_laboratorios: {
+                    signos_vitales: {
+                        peso: fisicoData.peso,
+                        talla: fisicoData.talla,
+                        fc: fisicoData.fc,
+                        fr: fisicoData.fr,
+                        ta: fisicoData.ta
+                    }
+                }
+            };
+
+            // Enviamos la respuesta al frontend
+            res.json({
+                success: true,
+                data: reporte_cateterismo_completo
+            });
+
+        } catch (error) {
+            console.error("Error en reporteCaterismo:", error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    },
 
 
 

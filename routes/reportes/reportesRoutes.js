@@ -11,6 +11,7 @@ const ReportesController = require('../../controllers/reportes/ReportesControlle
 // Obtener la "Sábana" completa (Datos clínicos, examen físico, paraclínicos)
 router.get('/sabana/:solicitud_id', ReportesController.getSabanaPaciente);
 router.get('/sabana/hemodinamia/:solicitud_id', ReportesController.getSabanaHemodinamia);
+router.get('/sabana/caterismo/:solicitud_id', ReportesController.reporteCaterismo);
 
 
 // Obtener reporte técnico del implante de Marcapasos
