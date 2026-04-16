@@ -37,11 +37,12 @@ const saveExamenFisico = async (req, res) => {
     try {
         const [exist] = await db.query('SELECT id FROM examen_fisico_hemodinamia WHERE solicitud_paciente_id = ?', [solicitud_paciente_id]);
 
-        // Convertimos el campo a JSON string antes de guardarlo en la BD
+        // Convertimos los campos múltiples a JSON string antes de guardarlos en la BD
         const viasAccesoJson = vias_acceso_id_hemodinamia ? JSON.stringify(vias_acceso_id_hemodinamia) : null;
+        const estadoPulsoJson = estado_pulso_id_hemodinamia ? JSON.stringify(estado_pulso_id_hemodinamia) : null; // <-- NUEVO CAMBIO JSON
 
         if (exist.length > 0) {
-            // UPDATE si ya existe el registro
+            // 2. UPDATE si ya existe el registro
             const updateSql = `
                 UPDATE examen_fisico_hemodinamia SET 
                     peso = ?, talla = ?, fc = ?, fr = ?, ta = ?, 
@@ -59,8 +60,9 @@ const saveExamenFisico = async (req, res) => {
             const values = [
                 peso, talla, fc, fr, ta,
                 ruidos_cardiacos_hemodinamia, soplos, soplos_areas_id_hemodinamia || null, 
-                soplos_intensidad_id_hemodinamia || null, crepitantes, estado_pulso_id_hemodinamia || null, 
-                viasAccesoJson, // <-- CAMBIO APLICADO AQUÍ
+                soplos_intensidad_id_hemodinamia || null, crepitantes, 
+                estadoPulsoJson, // <-- VARIABLE REEMPLAZADA AQUÍ
+                viasAccesoJson, 
                 hb_hemodinamia, hcto_hemodinamia, pqt_hemodinamia, leu_hemodinamia, 
                 glicemia_hemodinamia, urea_hemodinamia, creatinina_hemodinamia, 
                 hiv_hemodinamia, vdrl_hemodinamia, hepatitis_hemodinamia,
@@ -72,7 +74,7 @@ const saveExamenFisico = async (req, res) => {
             await db.query(updateSql, values);
             return res.status(200).json({ message: 'Examen físico y laboratorios actualizados' });
         } else {
-            // INSERT si es un registro nuevo
+            // 3. INSERT si es un registro nuevo
             const insertSql = `
                 INSERT INTO examen_fisico_hemodinamia (
                     solicitud_paciente_id, peso, talla, fc, fr, ta, 
@@ -88,8 +90,9 @@ const saveExamenFisico = async (req, res) => {
             const values = [
                 solicitud_paciente_id, peso, talla, fc, fr, ta,
                 ruidos_cardiacos_hemodinamia, soplos, soplos_areas_id_hemodinamia || null, soplos_intensidad_id_hemodinamia || null,
-                crepitantes, estado_pulso_id_hemodinamia || null, 
-                viasAccesoJson, // <-- CAMBIO APLICADO AQUÍ
+                crepitantes, 
+                estadoPulsoJson, // <-- VARIABLE REEMPLAZADA AQUÍ
+                viasAccesoJson, 
                 hb_hemodinamia, hcto_hemodinamia, pqt_hemodinamia, leu_hemodinamia, 
                 glicemia_hemodinamia, urea_hemodinamia, creatinina_hemodinamia, 
                 hiv_hemodinamia, vdrl_hemodinamia, hepatitis_hemodinamia,

@@ -34,7 +34,10 @@ const saveECG = async (req, res) => {
 
     try {
         const [exist] = await db.query('SELECT id FROM paciente_paraclinico_ecg WHERE solicitud_paciente_id = ?', [solicitud_paciente_id]);
+        
+        // Formateo a JSON para los campos múltiples
         const cavidadesJson = crecimiento_cavidades ? JSON.stringify(crecimiento_cavidades) : null;
+        const derivacionesJson = derivacion_afectada_id ? JSON.stringify(derivacion_afectada_id) : null; // <-- CONVERSIÓN A JSON AÑADIDA
 
         if (exist.length > 0) {
             await db.query(
@@ -49,7 +52,7 @@ const saveECG = async (req, res) => {
                 [
                     ritmo_id, frecuencia_cardiaca, intervalo_pr, duracion_qrs,
                     intervalo_qt, eje_qrs, cavidadesJson, segmento_st_id,
-                    q_patologica, derivacion_afectada_id, bloqueo_rama_id, bav_id,
+                    q_patologica, derivacionesJson, bloqueo_rama_id, bav_id, // <-- VARIABLE REEMPLAZADA AQUÍ
                     suc_bav_id, arritmias_id, f_qrs, f_p, descripcion_hallazgos,
                     bav_dos_mobitz_uno, bav_dos_mobitz_dos, bav_conduccion_dos_uno,
                     bav_conduccion_tres_uno, bav_conduccion_cuatro_uno, bav_conduccion_otros,
@@ -73,7 +76,7 @@ const saveECG = async (req, res) => {
             [
                 solicitud_paciente_id, ritmo_id, frecuencia_cardiaca, intervalo_pr,
                 duracion_qrs, intervalo_qt, eje_qrs, cavidadesJson,
-                segmento_st_id, q_patologica, derivacion_afectada_id, bloqueo_rama_id,
+                segmento_st_id, q_patologica, derivacionesJson, bloqueo_rama_id, // <-- VARIABLE REEMPLAZADA AQUÍ
                 bav_id, suc_bav_id, arritmias_id, f_qrs, f_p, descripcion_hallazgos,
                 bav_dos_mobitz_uno, bav_dos_mobitz_dos, bav_conduccion_dos_uno,
                 bav_conduccion_tres_uno, bav_conduccion_cuatro_uno, bav_conduccion_otros

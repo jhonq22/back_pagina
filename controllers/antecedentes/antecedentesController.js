@@ -56,6 +56,7 @@ const saveAntecedentes = async (req, res) => {
         neurologico_conservado_hc_hemodinamia,
         sincope_hemodinamia,
         claudicacion_intermitente_hemodinamia,
+        claudicacion_intermitente_hemodinamia_hijo, 
         diabetes_mellitus_hemodinamia,
         diabetes_mellitus_hemodinamia_hijo,
         tabaquismo_hemodinamia,
@@ -119,6 +120,7 @@ const saveAntecedentes = async (req, res) => {
                     neurologico_conservado_hc_hemodinamia = ?,
                     sincope_hemodinamia = ?,
                     claudicacion_intermitente_hemodinamia = ?,
+                    claudicacion_intermitente_hemodinamia_hijo = ?, 
                     diabetes_mellitus_hemodinamia = ?,
                     diabetes_mellitus_hemodinamia_hijo = ?,
                     tabaquismo_hemodinamia = ?,
@@ -144,8 +146,10 @@ const saveAntecedentes = async (req, res) => {
                 neonatal_pan, neonatal_tan, neonatal_eg,
                 otras, estatus || 1,
                 hta_hemodinamia, dislipidemia_hemodinamia, erc_hemodinamia,
-                erc_hemodinamia_hijo, // <--- VALOR AGREGADO
-                neurologico_conservado_hc_hemodinamia, sincope_hemodinamia, claudicacion_intermitente_hemodinamia,
+                erc_hemodinamia_hijo,
+                neurologico_conservado_hc_hemodinamia, sincope_hemodinamia, 
+                claudicacion_intermitente_hemodinamia,
+                claudicacion_intermitente_hemodinamia_hijo, 
                 diabetes_mellitus_hemodinamia, diabetes_mellitus_hemodinamia_hijo,
                 tabaquismo_hemodinamia, tabaquismo_hemodinamia_hijo,
                 antecedentes_cardiopatia_isquemica_hemodinamia, scasest_angina_inestable_hijo_hemodinamia,
@@ -172,6 +176,7 @@ const saveAntecedentes = async (req, res) => {
                     erc_hemodinamia_hijo, 
                     neurologico_conservado_hc_hemodinamia,
                     sincope_hemodinamia, claudicacion_intermitente_hemodinamia,
+                    claudicacion_intermitente_hemodinamia_hijo, 
                     diabetes_mellitus_hemodinamia, diabetes_mellitus_hemodinamia_hijo,
                     tabaquismo_hemodinamia, tabaquismo_hemodinamia_hijo,
                     antecedentes_cardiopatia_isquemica_hemodinamia, scasest_angina_inestable_hijo_hemodinamia,
@@ -180,7 +185,7 @@ const saveAntecedentes = async (req, res) => {
                     alergia_medicamentos_hemodinamia, alergia_medicamentos_hemodinamia_hijo,
                     otras_patologias_hemodinamia, otras_patologias_hemodinamia_hijo
                 ) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`; 
 
             const insertValues = [
                 solicitud_paciente_id, camposJson.hpm, camposJson.pb,
@@ -190,9 +195,10 @@ const saveAntecedentes = async (req, res) => {
                 tipo, neonatal_pan, neonatal_tan, neonatal_eg,
                 otras, estatus || 1,
                 hta_hemodinamia, dislipidemia_hemodinamia, erc_hemodinamia,
-                erc_hemodinamia_hijo, // <--- VALOR AGREGADO
+                erc_hemodinamia_hijo,
                 neurologico_conservado_hc_hemodinamia,
                 sincope_hemodinamia, claudicacion_intermitente_hemodinamia,
+                claudicacion_intermitente_hemodinamia_hijo, 
                 diabetes_mellitus_hemodinamia, diabetes_mellitus_hemodinamia_hijo,
                 tabaquismo_hemodinamia, tabaquismo_hemodinamia_hijo,
                 antecedentes_cardiopatia_isquemica_hemodinamia, scasest_angina_inestable_hijo_hemodinamia,
