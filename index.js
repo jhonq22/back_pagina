@@ -32,6 +32,8 @@ const medicosRoutes = require('./routes/crud/medicosRoutes');
 const reportesRoutes = require('./routes/reportes/reportesRoutes');
 const hemodinamiaRoutes = require('./routes/antecedentes/hemodinamiaRoutes');
 const sugerenciasRoutes = require('./routes/hemodinamia/sugerenciaRoutes');
+const consultasRoutes = require('./routes/consultas/consultasRoutes');
+
 
 
 //NO MIGRAR
@@ -72,6 +74,7 @@ app.use('/api/reportes', reportesRoutes);
 app.use('/api/galeria', galeriaRoutes);
 app.use('/api/base-legales', baseLegalesRoutes);
 app.use('/api/hemodinamia', hemodinamiaRoutes);
+app.use('/api/consultas', consultasRoutes);
 
 
 

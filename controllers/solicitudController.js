@@ -464,28 +464,30 @@ const fechaSQL = (date) => {
 
 // --- FINALIZAR PROCESO ADMINISTRATIVO ---
 const finalizarVerificacion = async (req, res) => {
-    const { id } = req.params; // ID de la solicitud
+    const { id } = req.params; 
 
-    // Extraemos los posibles campos del body
     const {
         tipo_operacion_id,
         estatus_solicitud_id,
         observacion_general,
         fecha_operacion,
-        medico_id
+        medico_id,
+        tipo_marca_paso_id // nuevo campo
     } = req.body;
 
-    // 1. Construcción dinámica de campos a actualizar
     const camposActualizar = [];
     const valores = [];
 
+    // 2. Validación dinámica para tipo_marca_paso_id
     if (tipo_operacion_id !== undefined) { camposActualizar.push('tipo_operacion_id = ?'); valores.push(tipo_operacion_id); }
     if (estatus_solicitud_id !== undefined) { camposActualizar.push('estatus_solicitud_id = ?'); valores.push(estatus_solicitud_id); }
     if (observacion_general !== undefined) { camposActualizar.push('observacion_general = ?'); valores.push(observacion_general); }
     if (fecha_operacion !== undefined) { camposActualizar.push('fecha_operacion = ?'); valores.push(fecha_operacion); }
     if (medico_id !== undefined) { camposActualizar.push('medico_id = ?'); valores.push(medico_id); }
+    
+    // Nueva línea para el marcapasos
+    if (tipo_marca_paso_id !== undefined) { camposActualizar.push('tipo_marca_paso_id = ?'); valores.push(tipo_marca_paso_id); }
 
-    // Si no enviaron absolutamente nada para actualizar, devolvemos error
     if (camposActualizar.length === 0) {
         return res.status(400).json({
             error: 'Debes enviar al menos un campo válido para actualizar.'
@@ -497,7 +499,6 @@ const finalizarVerificacion = async (req, res) => {
     try {
         await connection.beginTransaction();
 
-        // 2. Verificamos que la solicitud exista
         const [solicitud] = await connection.query(
             'SELECT id, paciente_id, centro_salud_id FROM registrar_solicitud_pacientes WHERE id = ?',
             [id]
@@ -511,8 +512,8 @@ const finalizarVerificacion = async (req, res) => {
         let nuevaFechaCita = null;
         const centro_salud_id = solicitud[0].centro_salud_id;
 
-        // 3. Lógica de Re-agendar (SOLO si se envió estatus_solicitud_id y es 100)
         if (estatus_solicitud_id !== undefined && parseInt(estatus_solicitud_id) === 100) {
+            // ... (Toda tu lógica de re-agendado se mantiene igual)
             const [config] = await connection.query(
                 'SELECT * FROM configuracion_dias WHERE centro_salud_id = ?',
                 [centro_salud_id]
@@ -565,14 +566,13 @@ const finalizarVerificacion = async (req, res) => {
                 return res.status(400).json({ error: 'No se encontró disponibilidad para re-agendar.' });
             }
 
-            // Si logramos reagendar, agregamos fecha_cita a nuestra actualización dinámica
             camposActualizar.push('fecha_cita = ?');
             valores.push(nuevaFechaCita);
         }
 
-        // 4. Ejecutar el UPDATE dinámico
+        // Ejecutar el UPDATE con los campos que se hayan acumulado
         const queryUpdate = `UPDATE registrar_solicitud_pacientes SET ${camposActualizar.join(', ')} WHERE id = ?`;
-        valores.push(id); // Añadimos el ID al final del arreglo de valores para el WHERE
+        valores.push(id); 
 
         await connection.query(queryUpdate, valores);
         await connection.commit();
@@ -586,7 +586,7 @@ const finalizarVerificacion = async (req, res) => {
         });
 
     } catch (error) {
-        await connection.rollback();
+        if (connection) await connection.rollback();
         console.error("Error en finalizarVerificacion:", error);
         res.status(500).json({ error: error.message });
     } finally {
