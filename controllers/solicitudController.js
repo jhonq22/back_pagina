@@ -230,13 +230,19 @@ const getSolicitudesEstatusDinamico = async (req, res) => {
 // --- NUEVA API: Obtener todas las solicitudes con estatus 6 y 5 ---
 const getSolicitudesPendientesAreaMedica = async (req, res) => {
     try {
-        // 1. Extraemos los parámetros de fecha de la URL (query string)
         const { fechaInicio, fechaFin } = req.query;
+
+        // 1. Consultar si Hemodinamia (id = 2) está activa en la tabla tipo_operaciones
+        const [opcionHemodinamia] = await db.query(
+            "SELECT estatus FROM tipo_operaciones WHERE id = 2"
+        );
+        
+        const hemodinamiaActiva = opcionHemodinamia.length > 0 && parseInt(opcionHemodinamia[0].estatus) === 1;
 
         // 2. Establecemos el idioma de la sesión a español
         await db.query("SET lc_time_names = 'es_ES'");
 
-        // 3. Base de la consulta SQL (usamos let para poder modificarla)
+        // 3. Base de la consulta SQL
         let sql = `
             SELECT 
                 s.*, 
@@ -252,16 +258,22 @@ const getSolicitudesPendientesAreaMedica = async (req, res) => {
 
         const params = [];
 
-        // 4. Agregamos el filtro de fecha_cita dinámicamente
+        // 4. NUEVO FILTRO CORREGIDO:
+        // Si Hemodinamia es false, EXCLUIMOS solo las solicitudes donde tipo_operacion_id sea 2
+        if (!hemodinamiaActiva) {
+            sql += ` AND (s.tipo_operacion_id != 2 OR s.tipo_operacion_id IS NULL)`; 
+        }
+
+        // 5. Agregamos el filtro de fecha_cita dinámicamente
         if (fechaInicio && fechaFin) {
             sql += ` AND DATE(s.fecha_cita) BETWEEN ? AND ?`;
             params.push(fechaInicio, fechaFin);
         }
 
-        // 5. Agregamos el ordenamiento al final
+        // 6. Agregamos el ordenamiento al final
         sql += ` ORDER BY s.fecha_cita ASC`;
 
-        // 6. Ejecutamos la consulta con sus parámetros
+        // 7. Ejecutamos la consulta con sus parámetros
         const [rows] = await db.query(sql, params);
 
         res.json(rows);
@@ -276,13 +288,19 @@ const getSolicitudesPendientesAreaMedica = async (req, res) => {
 
 const getSolicitudesPendientesAreaMedicaOperados = async (req, res) => {
     try {
-        // 1. Extraemos los parámetros de fecha de la URL (query string)
         const { fechaInicio, fechaFin } = req.query;
+
+        // 1. Consultar si Hemodinamia (id = 2) está activa en la tabla tipo_operaciones
+        const [opcionHemodinamia] = await db.query(
+            "SELECT estatus FROM tipo_operaciones WHERE id = 2"
+        );
+        
+        const hemodinamiaActiva = opcionHemodinamia.length > 0 && parseInt(opcionHemodinamia[0].estatus) === 1;
 
         // 2. Establecemos el idioma de la sesión a español
         await db.query("SET lc_time_names = 'es_ES'");
 
-        // 3. Base de la consulta SQL (usamos let para poder modificarla)
+        // 3. Base de la consulta SQL
         let sql = `
             SELECT 
                 s.*, 
@@ -298,25 +316,30 @@ const getSolicitudesPendientesAreaMedicaOperados = async (req, res) => {
 
         const params = [];
 
-        // 4. Agregamos el filtro de fecha_cita dinámicamente
+        // 4. Si Hemodinamia es false, EXCLUIMOS solo las solicitudes donde tipo_operacion_id sea 2
+        if (!hemodinamiaActiva) {
+            sql += ` AND (s.tipo_operacion_id != 2 OR s.tipo_operacion_id IS NULL)`; 
+        }
+
+        // 5. Agregamos el filtro de fecha_cita dinámicamente
         if (fechaInicio && fechaFin) {
             sql += ` AND DATE(s.fecha_cita) BETWEEN ? AND ?`;
             params.push(fechaInicio, fechaFin);
         }
 
-        // 5. Agregamos el ordenamiento al final
+        // 6. Agregamos el ordenamiento al final
         sql += ` ORDER BY s.fecha_cita ASC`;
 
-        // 6. Ejecutamos la consulta con sus parámetros
+        // 7. Ejecutamos la consulta con sus parámetros
         const [rows] = await db.query(sql, params);
 
         res.json(rows);
     } catch (error) {
-        console.error("Error en getSolicitudesPendientesAreaMedica:", error);
+        // Aproveché de corregir el nombre de la función en el console.error para que el log sea exacto
+        console.error("Error en getSolicitudesPendientesAreaMedicaOperados:", error);
         res.status(500).json({ error: error.message });
     }
 };
-
 
 
 

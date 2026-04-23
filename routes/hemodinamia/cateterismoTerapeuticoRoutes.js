@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 // Actualizado al nuevo nombre del controlador
-const controller = require('../../controllers/consultas/CateterismoTerapeuticoConsultaController');
+const controller = require('../../controllers/hemodinamia/CateterismoTerapeuticoController');
 
 // =========================================================
 // RUTAS PARA ARTERIAS TERAPÉUTICAS (PANTALLA DE VASOS)
@@ -12,8 +12,8 @@ const controller = require('../../controllers/consultas/CateterismoTerapeuticoCo
 router.post('/', controller.saveTerapeutico);
 
 // Obtener datos de arterias guardadas
-// CAMBIO: :solicitudId -> :consulta_medica_id
-router.get('/paciente/:consulta_medica_id', controller.getTerapeuticoBySolicitud);
+// CAMBIO: :solicitudId -> :solicitudId
+router.get('/paciente/:solicitudId', controller.getTerapeuticoBySolicitud);
 
 
 // =========================================================
@@ -24,7 +24,7 @@ router.get('/paciente/:consulta_medica_id', controller.getTerapeuticoBySolicitud
 router.post('/general', controller.saveTerapeuticoGeneral);
 
 // Obtener datos generales guardados
-// CAMBIO: :solicitudId -> :consulta_medica_id
-router.get('/general/paciente/:consulta_medica_id', controller.getTerapeuticoGeneralBySolicitud);
+// CAMBIO: :solicitudId -> :solicitudId
+router.get('/general/paciente/:solicitudId', controller.getTerapeuticoGeneralBySolicitud);
 
 module.exports = router;
