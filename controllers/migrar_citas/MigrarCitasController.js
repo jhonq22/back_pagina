@@ -54,7 +54,7 @@ const subirExcelTemporal = async (req, res) => {
 
         if (datosRaw.length === 0) return res.status(200).json({ msg: 'El Excel está vacío.' });
 
-        // --- 1. VALIDACIÓN DE DUPLICADOS DENTRO DEL MISMO EXCEL ---
+        // --- 1. VALIDACIÓN DE NULOS/VACÍOS Y DUPLICADOS DENTRO DEL MISMO EXCEL ---
         const cedulasEnExcel = new Set();
         const codigosEnExcel = new Set();
 
@@ -62,15 +62,23 @@ const subirExcelTemporal = async (req, res) => {
             const cedula = fila['CEDULA'];
             const codigo = fila['CODIGO 1X10'];
 
-            if (cedula && cedulasEnExcel.has(cedula)) {
+            // NUEVA VALIDACIÓN: Rechazar si Cédula o Código 1x10 vienen vacíos, null o undefined
+            if (cedula === null || cedula === undefined || String(cedula).trim() === '') {
+                return res.status(400).json({ msg: 'Error: El archivo Excel contiene registros sin CÉDULA. Archivo rechazado.' });
+            }
+            if (codigo === null || codigo === undefined || String(codigo).trim() === '') {
+                return res.status(400).json({ msg: `Error: El archivo Excel contiene registros sin CÓDIGO 1X10 (Cédula afectada: ${cedula}). Archivo rechazado.` });
+            }
+
+            if (cedulasEnExcel.has(cedula)) {
                 return res.status(400).json({ msg: `Error: El archivo Excel contiene la Cédula duplicada: ${cedula}` });
             }
-            if (codigo && codigosEnExcel.has(codigo)) {
+            if (codigosEnExcel.has(codigo)) {
                 return res.status(400).json({ msg: `Error: El archivo Excel contiene el Código 1x10 duplicado: ${codigo}` });
             }
 
-            if (cedula) cedulasEnExcel.add(cedula);
-            if (codigo) codigosEnExcel.add(codigo);
+            cedulasEnExcel.add(cedula);
+            codigosEnExcel.add(codigo);
         }
 
         // --- 2. VALIDACIÓN CONTRA LA BASE DE DATOS (Mismo Hospital y En Espera) ---
@@ -123,6 +131,7 @@ const subirExcelTemporal = async (req, res) => {
         const pacientesParaInsertar = [];
 
         for (const fila of datosRaw) {
+            // Ya validamos arriba que la cédula y el código existen, pero dejamos este continue como red de seguridad
             if (!fila['CEDULA']) continue;
 
             let asignado = false;
@@ -149,8 +158,8 @@ const subirExcelTemporal = async (req, res) => {
 
                 if (cuposDisponiblesHoy > 0) {
                     pacientesParaInsertar.push([
-                        fila['CODIGO 1X10'] || null,
-                        fila['CEDULA'],
+                        fila['CODIGO 1X10'], // Ya sabemos que no es null
+                        fila['CEDULA'],      // Ya sabemos que no es null
                         fila['PRIMER NOMBRE'],
                         fila['SEGUNDO NOMBRE'] || null,
                         fila['PRIMER APELLIDO'],
@@ -161,7 +170,7 @@ const subirExcelTemporal = async (req, res) => {
                         formatExcelDate(fila['FECHA NACIMIENTO']),
                         fechaStr,
                         (fila['ESTADO'] || '') + ", " + (fila['MUNICIPIO'] || ''),
-                        centro_salud_id // <-- NUEVO CAMPO AGREGADO AL ARRAY
+                        centro_salud_id
                     ]);
                     cuposDisponiblesHoy--;
                     asignado = true;

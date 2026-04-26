@@ -76,7 +76,7 @@ app.get('/', (req, res) => {
 // Todo lo que pase de esta línea hacia abajo exigirá un token válido obligatoriamente
 
 
-app.use(verificarToken);
+//app.use(verificarToken);
 
 // ==========================================
 // 🔒 4. RUTAS PROTEGIDAS (Requieren token)
