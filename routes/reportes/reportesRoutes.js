@@ -17,7 +17,6 @@ router.get('/sabana/caterismo/:solicitud_id', ReportesController.reporteCaterism
 // Obtener reporte técnico del implante de Marcapasos
 router.get('/marcapasos/:solicitud_id', ReportesController.getReporteMarcapasos);
 
-
 /**
  * ==========================================
  * DASHBOARD / GRÁFICOS
@@ -26,7 +25,6 @@ router.get('/marcapasos/:solicitud_id', ReportesController.getReporteMarcapasos)
 
 // Obtener datos formateados para ApexCharts/Chart.js
 router.get('/dashboard/estadisticas', ReportesController.getEstadisticasDashboard);
-
 
 /**
  * ==========================================

@@ -73,7 +73,7 @@ const subirExcelTemporal = async (req, res) => {
             if (codigo) codigosEnExcel.add(codigo);
         }
 
-        // --- 2. VALIDACIÓN CONTRA LA BASE DE DATOS (EN ESPERA) ---
+        // --- 2. VALIDACIÓN CONTRA LA BASE DE DATOS (Mismo Hospital y En Espera) ---
         const listaCedulas = Array.from(cedulasEnExcel);
         const listaCodigos = Array.from(codigosEnExcel);
 
@@ -82,15 +82,16 @@ const subirExcelTemporal = async (req, res) => {
                 `SELECT cedula, codificacion_buen_gobierno 
                  FROM pacientes_cita_temporal 
                  WHERE estatus = 'en_espera' 
-                 AND (cedula IN (?) OR codificacion_buen_gobierno IN (?))`,
-                [listaCedulas, listaCodigos.length > 0 ? listaCodigos : ['']]
+                 AND centro_salud_id = ?
+                 AND (cedula IN (?) OR (codificacion_buen_gobierno IN (?) AND codificacion_buen_gobierno IS NOT NULL))`,
+                [centro_salud_id, listaCedulas, listaCodigos.length > 0 ? listaCodigos : ['']]
             );
 
             if (duplicadosBD.length > 0) {
                 const item = duplicadosBD[0];
                 const esCedula = listaCedulas.includes(item.cedula);
                 const desc = esCedula ? `Cédula ${item.cedula}` : `Código 1x10 ${item.codificacion_buen_gobierno}`;
-                return res.status(400).json({ msg: `Carga cancelada. Ya existe un registro en espera con: ${desc}` });
+                return res.status(400).json({ msg: `Carga cancelada. Ya existe un registro en espera en este hospital con: ${desc}` });
             }
         }
 
@@ -142,7 +143,7 @@ const subirExcelTemporal = async (req, res) => {
 
                 if (cuposDisponiblesHoy === null) {
                     const [oficiales] = await db.query('SELECT COUNT(*) as total FROM registrar_solicitud_pacientes WHERE fecha_cita = ? AND centro_salud_id = ?', [fechaStr, centro_salud_id]);
-                    const [temporales] = await db.query('SELECT COUNT(*) as total FROM pacientes_cita_temporal WHERE fecha_cita_asignada = ? AND estatus = "en_espera"', [fechaStr]);
+                    const [temporales] = await db.query('SELECT COUNT(*) as total FROM pacientes_cita_temporal WHERE fecha_cita_asignada = ? AND estatus = "en_espera" AND centro_salud_id = ?', [fechaStr, centro_salud_id]);
                     cuposDisponiblesHoy = limite - ((oficiales[0].total || 0) + (temporales[0].total || 0));
                 }
 
@@ -159,7 +160,8 @@ const subirExcelTemporal = async (req, res) => {
                         fila['CORREO ELECTRONICO'] || null,
                         formatExcelDate(fila['FECHA NACIMIENTO']),
                         fechaStr,
-                        (fila['ESTADO'] || '') + ", " + (fila['MUNICIPIO'] || '')
+                        (fila['ESTADO'] || '') + ", " + (fila['MUNICIPIO'] || ''),
+                        centro_salud_id // <-- NUEVO CAMPO AGREGADO AL ARRAY
                     ]);
                     cuposDisponiblesHoy--;
                     asignado = true;
@@ -174,7 +176,7 @@ const subirExcelTemporal = async (req, res) => {
         if (pacientesParaInsertar.length > 0) {
             await db.query(
                 `INSERT INTO pacientes_cita_temporal 
-                (codificacion_buen_gobierno, cedula, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, telefono2, correo, fecha_nacimiento, fecha_cita_asignada, direccion) 
+                (codificacion_buen_gobierno, cedula, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, telefono2, correo, fecha_nacimiento, fecha_cita_asignada, direccion, centro_salud_id) 
                 VALUES ?`,
                 [pacientesParaInsertar]
             );
@@ -190,9 +192,21 @@ const subirExcelTemporal = async (req, res) => {
 
 const obtenerPacientesTemporales = async (req, res) => {
     try {
-        const [rows] = await db.query('SELECT * FROM pacientes_cita_temporal WHERE estatus = "en_espera" ORDER BY fecha_cita_asignada ASC');
+        // Obtenemos el id desde los parámetros de la URL o del query string
+        const { centro_salud_id } = req.params;
+
+        if (!centro_salud_id) {
+            return res.status(400).json({ status: false, msg: 'El ID del centro de salud es requerido' });
+        }
+
+        const [rows] = await db.query(
+            'SELECT * FROM pacientes_cita_temporal WHERE estatus = "en_espera" AND centro_salud_id = ? ORDER BY fecha_cita_asignada ASC',
+            [centro_salud_id]
+        );
+
         res.json({ status: rows.length > 0, data: rows });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ status: false, msg: 'Error al obtener datos' });
     }
 };

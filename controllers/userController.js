@@ -6,9 +6,9 @@ const jwt = require('jsonwebtoken');
 const login = async (req, res) => {
     const { usuario, password } = req.body;
     try {
-        // Hacemos un LEFT JOIN para traer roles_medico si existen
+        // Hacemos un LEFT JOIN para traer roles_medico y los nuevos campos booleanos si existen
         const [rows] = await db.query(
-            `SELECT u.*, r.rol, mrm.roles_medico 
+            `SELECT u.*, r.rol, mrm.roles_medico, mrm.marcapaso, mrm.hemodinamia 
              FROM users u 
              JOIN roles r ON u.rol_id = r.id 
              LEFT JOIN multi_roles_medicos mrm ON u.id = mrm.usuario_id 
@@ -41,7 +41,9 @@ const login = async (req, res) => {
                 rol_id: user.rol_id,
                 idPaciente: idPaciente,
                 centro_salud_id: user.centro_salud_id,
-                multi_roles: multiRolesArray // <--- Agregado al token
+                multi_roles: multiRolesArray,
+                marcapaso: Boolean(user.marcapaso),     // <--- Agregado al token
+                hemodinamia: Boolean(user.hemodinamia)  // <--- Agregado al token
             },
             process.env.JWT_SECRET || 'secret_key_123',
             { expiresIn: '8h' }
@@ -59,7 +61,9 @@ const login = async (req, res) => {
                 rol_id: user.rol_id,
                 idPaciente: idPaciente,
                 centro_salud_id: user.centro_salud_id,
-                multi_roles: multiRolesArray // <--- NUEVO: Valor de los multi-roles
+                multi_roles: multiRolesArray,
+                marcapaso: Boolean(user.marcapaso),     // <--- Enviado al frontend
+                hemodinamia: Boolean(user.hemodinamia)  // <--- Enviado al frontend
             }
         });
     } catch (error) {
@@ -88,7 +92,7 @@ const createUser = async (req, res) => {
 // 3. Obtener Usuarios
 const getUsers = async (req, res) => {
     try {
-        // Hacemos el LEFT JOIN también aquí para que el frontend pueda ver los roles al editar
+        // Hacemos el LEFT JOIN también aquí incluyendo marcapaso y hemodinamia
         const [rows] = await db.query(`
             SELECT 
                 u.id, 
@@ -99,19 +103,23 @@ const getUsers = async (req, res) => {
                 r.rol, 
                 lcs.descripcion as centro_salud_nombre, 
                 u.estatus as estatus_usuario,
-                mrm.roles_medico 
+                mrm.roles_medico,
+                mrm.marcapaso,    
+                mrm.hemodinamia   
             FROM users u 
             LEFT JOIN roles r ON u.rol_id = r.id
             LEFT JOIN lista_centro_salud lcs ON u.centro_salud_id = lcs.id
             LEFT JOIN multi_roles_medicos mrm ON u.id = mrm.usuario_id
         `);
 
-        // Mapeamos los resultados para asegurar que roles_medico sea siempre un array válido
+        // Mapeamos los resultados para asegurar formatos correctos
         const formatRows = rows.map(user => ({
             ...user,
-            roles_medico: user.roles_medico 
-                ? (typeof user.roles_medico === 'string' ? JSON.parse(user.roles_medico) : user.roles_medico) 
-                : []
+            roles_medico: user.roles_medico
+                ? (typeof user.roles_medico === 'string' ? JSON.parse(user.roles_medico) : user.roles_medico)
+                : [],
+            marcapaso: Boolean(user.marcapaso),     // Convertimos el 1/0 de MySQL a true/false para Vue
+            hemodinamia: Boolean(user.hemodinamia)  // Convertimos el 1/0 de MySQL a true/false para Vue
         }));
 
         res.json(formatRows);
@@ -167,31 +175,39 @@ const getRoles = async (req, res) => {
 
 // 8. Multi-roles
 const agregarMultiRol = async (req, res) => {
-    const { usuario_id, roles_medico } = req.body;
+    // 1. Extraemos los nuevos campos del body
+    const { usuario_id, roles_medico, marcapaso, hemodinamia } = req.body;
 
     if (!usuario_id || !roles_medico) {
         return res.status(400).json({ message: "Faltan datos requeridos" });
     }
 
     try {
+        // 2. Actualizamos la consulta para incluir las nuevas columnas
         const query = `
-            INSERT INTO multi_roles_medicos (usuario_id, roles_medico) 
-            VALUES (?, ?) 
-            ON DUPLICATE KEY UPDATE roles_medico = VALUES(roles_medico)
+            INSERT INTO multi_roles_medicos (usuario_id, roles_medico, marcapaso, hemodinamia) 
+            VALUES (?, ?, ?, ?) 
+            ON DUPLICATE KEY UPDATE 
+                roles_medico = VALUES(roles_medico),
+                marcapaso = VALUES(marcapaso),
+                hemodinamia = VALUES(hemodinamia)
         `;
 
+        // 3. Pasamos los valores. Si vienen como undefined, se insertarán como NULL
         const [result] = await db.execute(query, [
-            usuario_id, 
-            JSON.stringify(roles_medico)
+            usuario_id,
+            JSON.stringify(roles_medico),
+            marcapaso !== undefined ? marcapaso : null,
+            hemodinamia !== undefined ? hemodinamia : null
         ]);
 
         res.status(201).json({
-            message: "Roles actualizados correctamente",
-            id: result.insertId
+            message: "Roles y especialidades actualizados correctamente",
+            id: result.insertId || "updated"
         });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Error al guardar los roles" });
+        console.error("Error en agregarMultiRol:", error);
+        res.status(500).json({ message: "Error al guardar los datos" });
     }
 };
 

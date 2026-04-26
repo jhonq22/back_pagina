@@ -9,12 +9,16 @@ const saveConsultaMedica = async (req, res) => {
         id, // Si viene null o vacío, hace INSERT. Si trae valor, hace UPDATE.
         paciente_id,
         motivo_consulta_id,
-        fecha_consulta
+        fecha_consulta,
+        cateterismo // <-- Nuevo campo recibido
     } = req.body;
 
     if (!paciente_id) {
         return res.status(400).json({ message: "El paciente_id es obligatorio" });
     }
+
+    // Aseguramos que sea un valor numérico (0 o 1) para MySQL
+    const valorCateterismo = cateterismo ? 1 : 0;
 
     try {
         if (id) {
@@ -24,19 +28,31 @@ const saveConsultaMedica = async (req, res) => {
                     paciente_id = ?, 
                     motivo_consulta_id = ?, 
                     fecha_consulta = ?, 
+                    cateterismo = ?, 
                     fecha_modificacion = CURRENT_TIMESTAMP, 
                     fecha_actualizacion = CURRENT_TIMESTAMP
                 WHERE id = ?`,
-                [paciente_id, motivo_consulta_id || null, fecha_consulta || null, id]
+                [
+                    paciente_id,
+                    motivo_consulta_id || null,
+                    fecha_consulta || null,
+                    valorCateterismo, // <-- Agregado al UPDATE
+                    id
+                ]
             );
             return res.status(200).json({ message: 'Consulta médica actualizada con éxito', id });
         } else {
             // INSERT
             const [result] = await db.query(
                 `INSERT INTO consultas_medicas 
-                (paciente_id, motivo_consulta_id, fecha_consulta, estatus, fecha_creacion) 
-                VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)`, 
-                [paciente_id, motivo_consulta_id || null, fecha_consulta || null]
+                (paciente_id, motivo_consulta_id, fecha_consulta, cateterismo, estatus, fecha_creacion) 
+                VALUES (?, ?, ?, ?, 1, CURRENT_TIMESTAMP)`,
+                [
+                    paciente_id,
+                    motivo_consulta_id || null,
+                    fecha_consulta || null,
+                    valorCateterismo // <-- Agregado al INSERT
+                ]
             );
             return res.status(200).json({ message: 'Consulta médica creada con éxito', id: result.insertId });
         }
@@ -95,7 +111,7 @@ const savePrimeraEtapa = async (req, res) => {
                 WHERE id = ?`,
                 [
                     limitacion_fisica || null, caminar_paso_ligero_id || null, caminar_por_casa_id || null, bañarse_vestirse_id || null,
-                    frecuencia_angina_pregunta_uno_id || null, frecuencia_angina_pregunta_dos_id || null, percepcion_calidad_pregunta_uno_id || null, 
+                    frecuencia_angina_pregunta_uno_id || null, frecuencia_angina_pregunta_dos_id || null, percepcion_calidad_pregunta_uno_id || null,
                     percepcion_calidad_pregunta_dos_id || null, valores_respuesta_id || null, puntuacion_valderrama || null, id
                 ]
             );
@@ -108,7 +124,7 @@ const savePrimeraEtapa = async (req, res) => {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)`,
                 [
                     consultas_medica_id, limitacion_fisica || null, caminar_paso_ligero_id || null, caminar_por_casa_id || null, bañarse_vestirse_id || null,
-                    frecuencia_angina_pregunta_uno_id || null, frecuencia_angina_pregunta_dos_id || null, percepcion_calidad_pregunta_uno_id || null, 
+                    frecuencia_angina_pregunta_uno_id || null, frecuencia_angina_pregunta_dos_id || null, percepcion_calidad_pregunta_uno_id || null,
                     percepcion_calidad_pregunta_dos_id || null, valores_respuesta_id || null, puntuacion_valderrama || null
                 ]
             );
@@ -142,6 +158,9 @@ const saveSegundaEtapa = async (req, res) => {
         id, // Si viene null o vacío, hace INSERT. Si trae valor, hace UPDATE.
         consultas_medica_id,
         revision_aceso_id,
+        revision_evolucion_id,
+        revision_lado_id,
+        revision_pulso_id,
         evolucion_post_procedimiento,
         tratamientos_id, // Se recibe como array para ser JSON
         sugerencia_consulta_id, // Se recibe como array para ser JSON
@@ -161,6 +180,9 @@ const saveSegundaEtapa = async (req, res) => {
             await db.query(
                 `UPDATE test_seatle_segunda_etapa_consulta SET 
                     revision_aceso_id = ?, 
+                    revision_evolucion_id = ?,
+                    revision_lado_id = ?,
+                    revision_pulso_id = ?,
                     evolucion_post_procedimiento = ?, 
                     tratamientos_id = ?, 
                     sugerencia_consulta_id = ?, 
@@ -169,10 +191,13 @@ const saveSegundaEtapa = async (req, res) => {
                     fecha_actualizacion = CURRENT_TIMESTAMP
                 WHERE id = ?`,
                 [
-                    revision_aceso_id || null, 
-                    evolucion_post_procedimiento || null, 
-                    tratamientosJson, 
-                    sugerenciaJson, 
+                    revision_aceso_id || null,
+                    revision_evolucion_id || null,
+                    revision_lado_id || null,
+                    revision_pulso_id || null,
+                    evolucion_post_procedimiento || null,
+                    tratamientosJson,
+                    sugerenciaJson,
                     puntuacion_valderrama || null, // <-- Pasamos el valor al UPDATE
                     id
                 ]
@@ -182,14 +207,17 @@ const saveSegundaEtapa = async (req, res) => {
             // INSERT
             const [result] = await db.query(
                 `INSERT INTO test_seatle_segunda_etapa_consulta 
-                (consultas_medica_id, revision_aceso_id, evolucion_post_procedimiento, tratamientos_id, sugerencia_consulta_id, puntuacion_valderrama, estatus, fecha_creacion) 
-                VALUES (?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)`, // <-- Agregamos un '?' extra
+                (consultas_medica_id, revision_aceso_id,    revision_evolucion_id, revision_lado_id, revision_pulso_id, evolucion_post_procedimiento, tratamientos_id, sugerencia_consulta_id, puntuacion_valderrama, estatus, fecha_creacion) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)`, // <-- Agregamos un '?' extra
                 [
-                    consultas_medica_id, 
-                    revision_aceso_id || null, 
-                    evolucion_post_procedimiento || null, 
-                    tratamientosJson, 
-                    sugerenciaJson, 
+                    consultas_medica_id,
+                    revision_aceso_id || null,
+                    revision_evolucion_id || null,
+                    revision_lado_id || null,
+                    revision_pulso_id || null,
+                    evolucion_post_procedimiento || null,
+                    tratamientosJson,
+                    sugerenciaJson,
                     puntuacion_valderrama || null // <-- Pasamos el valor al INSERT
                 ]
             );
@@ -205,9 +233,9 @@ const getSegundaEtapaByConsultaId = async (req, res) => {
     const { consultaId } = req.params; // Se busca usando el ID del maestro
     try {
         const [rows] = await db.query('SELECT * FROM test_seatle_segunda_etapa_consulta WHERE consultas_medica_id = ?', [consultaId]);
-        
+
         if (rows.length === 0) return res.json(null);
-        
+
         const etapa = rows[0];
 
         // Parseamos los JSON para que el frontend reciba arrays directamente
@@ -269,7 +297,7 @@ const buscarCedulaConsultas = async (req, res) => {
             primer_apellido: paciente.primer_apellido,
             sexo: paciente.sexo,
             fecha_nacimiento: paciente.fecha_nacimiento,
-            
+
             // Si tiene solicitud previa llenamos los datos, si no, se van en null
             tipo_operacion_id: ultimaSolicitud ? ultimaSolicitud.tipo_operacion_id : null,
             marcapaso: ultimaSolicitud ? ultimaSolicitud.marcapaso : null,
@@ -324,6 +352,7 @@ const getConsultasConEtapas = async (req, res) => {
                 cm.paciente_id,
                 cm.fecha_consulta,
                 cm.estatus,
+                cm.cateterismo,
                 t.nombre AS motivo_consulta, 
                 
                 -- NUEVO: Datos del paciente
@@ -387,14 +416,205 @@ const getConsultasConEtapas = async (req, res) => {
 };
 
 
+
+
+
+
+
+//REPORTES
+
+
+
+
+const getReportePrimeraEtapa = async (req, res) => {
+    try {
+        const { consulta_medico_id } = req.params;
+
+        if (!consulta_medico_id) {
+            return res.status(400).json({
+                success: false,
+                message: "El parámetro consulta_medico_id es requerido."
+            });
+        }
+
+        const [reporteResult] = await db.query(`
+            SELECT 
+                -- Datos del paciente
+                p.cedula, p.primer_nombre, p.primer_apellido, p.sexo, p.fecha_nacimiento,
+                -- Datos de la consulta
+                c.id AS consulta_id, c.fecha_consulta, c.cateterismo,
+                -- Datos de la Primera Etapa (Campos directos)
+                pe.limitacion_fisica, pe.puntuacion_valderrama, pe.fecha_creacion,
+                -- Cruce con Catálogos (Nombres legibles)
+                cat_mc.nombre AS motivo_consulta,
+                cat_cpl.nombre AS caminar_paso_ligero,
+                cat_cpc.nombre AS caminar_por_casa,
+                cat_bv.nombre AS banarse_vestirse,
+                cat_fa1.nombre AS frecuencia_angina_pregunta_uno,
+                cat_fa2.nombre AS frecuencia_angina_pregunta_dos,
+                cat_pc1.nombre AS percepcion_calidad_pregunta_uno,
+                cat_pc2.nombre AS percepcion_calidad_pregunta_dos,
+                cat_vr.nombre AS valores_respuesta
+            FROM consultas_medicas c
+            LEFT JOIN pacientes p ON c.paciente_id = p.id
+            LEFT JOIN test_seatle_primera_etapa_consulta pe ON c.id = pe.consultas_medica_id
+            -- Joins hacia el catálogo
+            LEFT JOIN catalogo_consultas cat_mc ON c.motivo_consulta_id = cat_mc.id
+            LEFT JOIN catalogo_consultas cat_cpl ON pe.caminar_paso_ligero_id = cat_cpl.id
+            LEFT JOIN catalogo_consultas cat_cpc ON pe.caminar_por_casa_id = cat_cpc.id
+            LEFT JOIN catalogo_consultas cat_bv ON pe.bañarse_vestirse_id = cat_bv.id
+            LEFT JOIN catalogo_consultas cat_fa1 ON pe.frecuencia_angina_pregunta_uno_id = cat_fa1.id
+            LEFT JOIN catalogo_consultas cat_fa2 ON pe.frecuencia_angina_pregunta_dos_id = cat_fa2.id
+            LEFT JOIN catalogo_consultas cat_pc1 ON pe.percepcion_calidad_pregunta_uno_id = cat_pc1.id
+            LEFT JOIN catalogo_consultas cat_pc2 ON pe.percepcion_calidad_pregunta_dos_id = cat_pc2.id
+            LEFT JOIN catalogo_consultas cat_vr ON pe.valores_respuesta_id = cat_vr.id
+            WHERE c.id = ? 
+            LIMIT 1
+        `, [consulta_medico_id]);
+
+        res.json({
+            success: true,
+            data: reporteResult.length > 0 ? reporteResult[0] : null
+        });
+
+    } catch (error) {
+        console.error("Error en getReportePrimeraEtapa:", error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+};
+
+
+
+
+
+
+const getReporteSegundaEtapa = async (req, res) => {
+    try {
+        const { consulta_medico_id } = req.params;
+
+        if (!consulta_medico_id) {
+            return res.status(400).json({
+                success: false,
+                message: "El parámetro consulta_medico_id es requerido."
+            });
+        }
+
+        // 1. Obtener los datos maestros de la segunda etapa
+        const [reporteResult] = await db.query(`
+            SELECT 
+                -- Datos del paciente
+                p.cedula, p.primer_nombre, p.primer_apellido, p.sexo, p.fecha_nacimiento,
+                -- Datos de la consulta
+                c.id AS consulta_id, c.fecha_consulta, c.cateterismo,
+                -- Datos de la Segunda Etapa
+                se.evolucion_post_procedimiento, se.puntuacion_valderrama, se.fecha_creacion,
+                se.tratamientos_id AS tratamientos_id_json,
+                se.sugerencia_consulta_id AS sugerencia_consulta_id_json,
+                -- Cruce con Catálogos directos
+                cat_mc.nombre AS motivo_consulta,
+                cat_ra.nombre AS revision_acceso,
+                cat_re.nombre AS revision_evolucion,
+                cat_rl.nombre AS revision_lado,
+                cat_rp.nombre AS revision_pulso
+            FROM consultas_medicas c
+            LEFT JOIN pacientes p ON c.paciente_id = p.id
+            LEFT JOIN test_seatle_segunda_etapa_consulta se ON c.id = se.consultas_medica_id
+            -- Joins hacia el catálogo
+            LEFT JOIN catalogo_consultas cat_mc ON c.motivo_consulta_id = cat_mc.id
+            LEFT JOIN catalogo_consultas cat_ra ON se.revision_aceso_id = cat_ra.id
+            LEFT JOIN catalogo_consultas cat_re ON se.revision_evolucion_id = cat_re.id
+            LEFT JOIN catalogo_consultas cat_rl ON se.revision_lado_id = cat_rl.id
+            LEFT JOIN catalogo_consultas cat_rp ON se.revision_pulso_id = cat_rp.id
+            WHERE c.id = ? 
+            LIMIT 1
+        `, [consulta_medico_id]);
+
+        let data = reporteResult.length > 0 ? reporteResult[0] : null;
+
+        if (data) {
+            // Arrays temporales para guardar los IDs extraídos
+            let tratamientosIds = [];
+            let sugerenciasIds = [];
+
+            // Parsear tratamientos
+            if (data.tratamientos_id_json) {
+                tratamientosIds = typeof data.tratamientos_id_json === 'string'
+                    ? JSON.parse(data.tratamientos_id_json)
+                    : data.tratamientos_id_json;
+            }
+
+            // Parsear sugerencias
+            if (data.sugerencia_consulta_id_json) {
+                sugerenciasIds = typeof data.sugerencia_consulta_id_json === 'string'
+                    ? JSON.parse(data.sugerencia_consulta_id_json)
+                    : data.sugerencia_consulta_id_json;
+            }
+
+            // Asegurarnos de que sean arrays (prevención de errores)
+            if (!Array.isArray(tratamientosIds)) tratamientosIds = [];
+            if (!Array.isArray(sugerenciasIds)) sugerenciasIds = [];
+
+            // Inicializar las nuevas propiedades donde irán los textos
+            data.tratamientos = [];
+            data.sugerencias = [];
+
+            // 2. Unir todos los IDs únicos para hacer una sola consulta al catálogo
+            const allIds = [...new Set([...tratamientosIds, ...sugerenciasIds])];
+
+            if (allIds.length > 0) {
+                // 3. Consultar el catálogo buscando todos esos IDs de una vez
+                const [catalogosResult] = await db.query(`
+                    SELECT id, nombre 
+                    FROM catalogo_consultas 
+                    WHERE id IN (?)
+                `, [allIds]);
+
+                // Crear un diccionario/mapa { id: 'nombre' } para búsqueda ultra rápida
+                const catalogosMap = {};
+                catalogosResult.forEach(item => {
+                    catalogosMap[item.id] = item.nombre;
+                });
+
+                // 4. Mapear los arrays originales de IDs por sus nombres correspondientes
+                data.tratamientos = tratamientosIds.map(id => catalogosMap[id] || id);
+                data.sugerencias = sugerenciasIds.map(id => catalogosMap[id] || id);
+            }
+
+            // (Opcional) Eliminar las llaves crudas con _json para no ensuciar la respuesta final
+            delete data.tratamientos_id_json;
+            delete data.sugerencia_consulta_id_json;
+        }
+
+        res.json({
+            success: true,
+            data: data
+        });
+
+    } catch (error) {
+        console.error("Error en getReporteSegundaEtapa:", error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+};
+
+
+
+
 // =====================================================================
 // EXPORTAR MÓDULOS
 // =====================================================================
-module.exports = { 
+module.exports = {
     saveConsultaMedica, getConsultaMedicaById,
     savePrimeraEtapa, getPrimeraEtapaByConsultaId,
     saveSegundaEtapa, getSegundaEtapaByConsultaId,
-    buscarCedulaConsultas, lista_por_tipo, getConsultasConEtapas
+    buscarCedulaConsultas, lista_por_tipo, getConsultasConEtapas,
+    getReportePrimeraEtapa,
+    getReporteSegundaEtapa
 
- 
+
 };

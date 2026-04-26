@@ -44,4 +44,22 @@ router.get('/etapa-dos/consulta/:consultaId', consultasController.getSegundaEtap
 // Ruta para obtener por tipo (ej: /api/consulta/tipo/INDUCCION_ISQUEMA)
 router.get('/tipo/:tipo', consultasController.lista_por_tipo);
 
+
+
+
+
+//REPORTES 
+
+
+
+router.get('/reportes/primera-etapa/:consulta_medico_id', consultasController.getReportePrimeraEtapa);
+router.get('/reportes/segunda-etapa/:consulta_medico_id', consultasController.getReporteSegundaEtapa);
+
+
+
+
+
+
+
+
 module.exports = router;

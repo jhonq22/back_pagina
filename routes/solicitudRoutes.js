@@ -14,7 +14,7 @@ const { confirmarCitas, eliminarTemporales, eliminarTemporalPorId } = require('.
 router.get('/pacientes-con-solicitudes', solicitudController.PacientesConSolicitudes);
 router.get('/pacientes-con-solicitudes-actualizados', solicitudController.PacientesConSolicitudesActualizados);
 router.get('/pacientes-con-solicitudes-no-actualizados', solicitudController.PacientesConSolicitudesNoActualizados);
-router.get('/ver-temporales', obtenerPacientesTemporales);
+router.get('/ver-temporales/:centro_salud_id', obtenerPacientesTemporales);
 
 
 // Rutas exclusivas para el campo marcapaso
@@ -23,9 +23,9 @@ router.put('/update-marcapaso/:id', solicitudController.updateMarcapaso);
 
 // Rutas de Listado
 router.get('/', solicitudController.getSolicitudes);
-router.get('/dinamico/:id', solicitudController.getSolicitudesEstatusDinamico);
-router.get('/pendientes', solicitudController.getSolicitudesPendientesAreaMedica);
-router.get('/pendientes-operados', solicitudController.getSolicitudesPendientesAreaMedicaOperados);
+router.get('/dinamico/:id/:centro_salud_id', solicitudController.getSolicitudesEstatusDinamico);
+router.get('/pendientes/:centro_salud_id', solicitudController.getSolicitudesPendientesAreaMedica);
+router.get('/pendientes-operados/:centro_salud_id', solicitudController.getSolicitudesPendientesAreaMedicaOperados);
 router.get('/pendientes-administrativas', solicitudController.getSolicitudesPendientesAreaAdministrativa);
 router.get('/pendientes-centro/:centro_salud_id', solicitudController.getSolicitudesPendientesPorCentro);
 router.get('/pendientes-medicas', solicitudController.getSolicitudesPendientesAreaMedica);

@@ -154,7 +154,155 @@ const CrudListaTipoController = {
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
+    },
+
+
+
+
+    // ==========================================
+    // SECCIÓN: MARCAS
+    // ==========================================
+
+    getMarcas: async (req, res) => {
+        try {
+            // Hacemos un JOIN para que el frontend reciba el nombre del tipo de marcapasos y sea fácil armar la tabla
+            const query = `
+                SELECT m.*, t.tipo AS tipo_marca_nombre 
+                FROM marcas m 
+                LEFT JOIN tipo_marca_pasos t ON m.tipo_marca_id = t.id 
+                ORDER BY m.marca ASC
+            `;
+            const [rows] = await db.query(query);
+            res.json(rows);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    },
+
+    saveMarca: async (req, res) => {
+        const { id, marca, tipo_marca_id, estatus } = req.body;
+        if (!marca) return res.status(400).json({ error: 'El nombre de la marca es obligatorio' });
+        if (!tipo_marca_id) return res.status(400).json({ error: 'El tipo de marca es obligatorio' });
+
+        try {
+            // Validamos que no exista la misma marca para el mismo tipo_marca_id
+            const [existe] = await db.query(
+                'SELECT id FROM marcas WHERE marca = ? AND tipo_marca_id = ? AND id != ? AND estatus = 1',
+                [marca, tipo_marca_id, id || 0]
+            );
+
+            if (existe.length > 0) {
+                return res.status(400).json({ error: 'Esta marca ya se encuentra registrada para este tipo de marcapasos' });
+            }
+
+            if (id) {
+                // Modo Edición
+                await db.query(
+                    'UPDATE marcas SET marca = ?, tipo_marca_id = ?, estatus = ? WHERE id = ?',
+                    [marca, tipo_marca_id, estatus, id]
+                );
+                return res.json({ message: 'Marca actualizada correctamente' });
+            } else {
+                // Modo Creación
+                const [result] = await db.query(
+                    'INSERT INTO marcas (marca, tipo_marca_id, estatus) VALUES (?, ?, 1)',
+                    [marca, tipo_marca_id]
+                );
+                return res.status(201).json({
+                    message: 'Marca creada con éxito',
+                    id: result.insertId
+                });
+            }
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    },
+
+    deleteMarca: async (req, res) => {
+        const { id } = req.params;
+        try {
+            await db.query('UPDATE marcas SET estatus = 0 WHERE id = ?', [id]);
+            res.json({ message: 'Marca desactivada' });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    },
+
+    // ==========================================
+    // SECCIÓN: MODELOS
+    // ==========================================
+
+    getModelos: async (req, res) => {
+        try {
+            // Hacemos un JOIN para traer también el nombre de la marca asociada
+            const query = `
+                SELECT md.*, m.marca AS marca_nombre 
+                FROM modelos md 
+                LEFT JOIN marcas m ON md.marca_id = m.id 
+                ORDER BY md.modelo ASC
+            `;
+            const [rows] = await db.query(query);
+            res.json(rows);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    },
+
+    saveModelo: async (req, res) => {
+        const { id, modelo, marca_id, estatus } = req.body;
+        if (!modelo) return res.status(400).json({ error: 'El nombre del modelo es obligatorio' });
+        if (!marca_id) return res.status(400).json({ error: 'La marca es obligatoria' });
+
+        try {
+            // Validamos que no exista el mismo modelo para la misma marca
+            const [existe] = await db.query(
+                'SELECT id FROM modelos WHERE modelo = ? AND marca_id = ? AND id != ? AND estatus = 1',
+                [modelo, marca_id, id || 0]
+            );
+
+            if (existe.length > 0) {
+                return res.status(400).json({ error: 'Este modelo ya se encuentra registrado para esta marca' });
+            }
+
+            if (id) {
+                // Modo Edición
+                await db.query(
+                    'UPDATE modelos SET modelo = ?, marca_id = ?, estatus = ? WHERE id = ?',
+                    [modelo, marca_id, estatus, id]
+                );
+                return res.json({ message: 'Modelo actualizado correctamente' });
+            } else {
+                // Modo Creación
+                const [result] = await db.query(
+                    'INSERT INTO modelos (modelo, marca_id, estatus) VALUES (?, ?, 1)',
+                    [modelo, marca_id]
+                );
+                return res.status(201).json({
+                    message: 'Modelo creado con éxito',
+                    id: result.insertId
+                });
+            }
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    },
+
+    deleteModelo: async (req, res) => {
+        const { id } = req.params;
+        try {
+            await db.query('UPDATE modelos SET estatus = 0 WHERE id = ?', [id]);
+            res.json({ message: 'Modelo desactivado' });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
     }
+
+
+
 };
+
+
+
+
 
 module.exports = CrudListaTipoController;

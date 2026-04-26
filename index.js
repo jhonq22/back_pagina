@@ -34,6 +34,7 @@ const hemodinamiaRoutes = require('./routes/antecedentes/hemodinamiaRoutes');
 const sugerenciasRoutes = require('./routes/hemodinamia/sugerenciaRoutes');
 const consultasRoutes = require('./routes/consultas/consultasRoutes');
 const paraclinicosConsultasRoutes = require('./routes/consultas/paraclinicosConsultaRoutes');
+const cateterismoTerapeuticoConsultaRoutes = require('./routes/consultas/cateterismoTerapeuticoConsultaRoutes');
 
 
 
@@ -78,6 +79,7 @@ app.use('/api/base-legales', baseLegalesRoutes);
 app.use('/api/hemodinamia', hemodinamiaRoutes);
 app.use('/api/consultas', consultasRoutes);
 app.use('/api/paraclinicos-consultas', paraclinicosConsultasRoutes);
+app.use('/api/cateterismo-terapeutico-consulta', cateterismoTerapeuticoConsultaRoutes);
 
 
 

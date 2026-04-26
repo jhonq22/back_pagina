@@ -31,4 +31,33 @@ router.post('/especialidades', CrudListaTipoController.saveEspecialidad);
 router.delete('/especialidades/:id', CrudListaTipoController.deleteEspecialidad);
 
 
+
+
+
+
+
+// ==========================================
+// SECCIÓN: MARCAS DE MARCAPASOS
+// ==========================================
+
+// Listar todas las marcas
+router.get('/marcas', CrudListaTipoController.getMarcas);
+// Guardar o Actualizar
+router.post('/marcas', CrudListaTipoController.saveMarca);
+// Desactivar
+router.delete('/marcas/:id', CrudListaTipoController.deleteMarca);
+
+// ==========================================
+// SECCIÓN: MODELOS DE MARCAPASOS
+// ==========================================
+
+// Listar todos los modelos
+router.get('/modelos', CrudListaTipoController.getModelos);
+// Guardar o Actualizar
+router.post('/modelos', CrudListaTipoController.saveModelo);
+// Desactivar
+router.delete('/modelos/:id', CrudListaTipoController.deleteModelo);
+
+
+
 module.exports = router;

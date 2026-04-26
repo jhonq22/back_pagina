@@ -172,18 +172,23 @@ const getSolicitudesPendientesPorCentro = async (req, res) => {
 // estatus solicitud dinamicos
 const getSolicitudesEstatusDinamico = async (req, res) => {
     try {
-        // 1. Obtenemos el id del estatus desde req.params y las fechas desde req.query
-        const { id } = req.params;
+        // 1. Obtenemos el id del estatus y centro_salud_id desde req.params
+        // Las fechas las seguimos obteniendo de req.query
+        const { id, centro_salud_id } = req.params;
         const { fechaInicio, fechaFin } = req.query;
 
         if (!id) {
             return res.status(400).json({ error: "El ID de estatus es obligatorio." });
         }
 
+        if (!centro_salud_id) {
+            return res.status(400).json({ error: "El ID del centro de salud es requerido." });
+        }
+
         // 2. Establecemos el idioma de la sesión a español
         await db.query("SET lc_time_names = 'es_ES'");
 
-        // 3. Base de la consulta SQL
+        // 3. Base de la consulta SQL (Agregamos la cláusula del centro de salud)
         let sql = `
             SELECT 
                 s.*, 
@@ -200,11 +205,13 @@ const getSolicitudesEstatusDinamico = async (req, res) => {
             LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
             LEFT JOIN registro_medicos rm ON s.medico_id = rm.id
             LEFT JOIN tipo_operaciones tp ON s.tipo_operacion_id = tp.id
-            WHERE s.estatus_solicitud_id = ?
+            WHERE s.estatus_solicitud_id = ? 
+            AND s.centro_salud_id = ?
         `;
 
-        // Iniciamos el arreglo de parámetros con el ID del estatus
-        const params = [id];
+        // Iniciamos el arreglo de parámetros con el ID del estatus y el centro de salud
+        // IMPORTANTE: El orden debe coincidir con los "?" en el SQL
+        const params = [id, centro_salud_id];
 
         // 4. Agregamos el filtro de fechas dinámicamente si vienen ambos campos
         if (fechaInicio && fechaFin) {
@@ -230,13 +237,19 @@ const getSolicitudesEstatusDinamico = async (req, res) => {
 // --- NUEVA API: Obtener todas las solicitudes con estatus 6 y 5 ---
 const getSolicitudesPendientesAreaMedica = async (req, res) => {
     try {
+        // 0. Extraemos el centro_salud_id de params
+        const { centro_salud_id } = req.params;
         const { fechaInicio, fechaFin } = req.query;
 
-        // 1. Consultar si Hemodinamia (id = 2) está activa en la tabla tipo_operaciones
+        if (!centro_salud_id) {
+            return res.status(400).json({ error: "El ID del centro de salud es requerido." });
+        }
+
+        // 1. Consultar si Hemodinamia (id = 2) está activa
         const [opcionHemodinamia] = await db.query(
             "SELECT estatus FROM tipo_operaciones WHERE id = 2"
         );
-        
+
         const hemodinamiaActiva = opcionHemodinamia.length > 0 && parseInt(opcionHemodinamia[0].estatus) === 1;
 
         // 2. Establecemos el idioma de la sesión a español
@@ -254,14 +267,16 @@ const getSolicitudesPendientesAreaMedica = async (req, res) => {
             INNER JOIN pacientes p ON s.paciente_id = p.id
             LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
             WHERE s.estatus_solicitud_id IN (6, 5)
+            AND s.centro_salud_id = ?
         `;
 
-        const params = [];
+        // Iniciamos params con el ID del centro
+        const params = [centro_salud_id];
 
         // 4. NUEVO FILTRO CORREGIDO:
         // Si Hemodinamia es false, EXCLUIMOS solo las solicitudes donde tipo_operacion_id sea 2
         if (!hemodinamiaActiva) {
-            sql += ` AND (s.tipo_operacion_id != 2 OR s.tipo_operacion_id IS NULL)`; 
+            sql += ` AND (s.tipo_operacion_id != 2 OR s.tipo_operacion_id IS NULL)`;
         }
 
         // 5. Agregamos el filtro de fecha_cita dinámicamente
@@ -288,19 +303,25 @@ const getSolicitudesPendientesAreaMedica = async (req, res) => {
 
 const getSolicitudesPendientesAreaMedicaOperados = async (req, res) => {
     try {
+        // 0. Extraemos el centro_salud_id de params
+        const { centro_salud_id } = req.params;
         const { fechaInicio, fechaFin } = req.query;
 
-        // 1. Consultar si Hemodinamia (id = 2) está activa en la tabla tipo_operaciones
+        if (!centro_salud_id) {
+            return res.status(400).json({ error: "El ID del centro de salud es requerido." });
+        }
+
+        // 1. Consultar si Hemodinamia (id = 2) está activa
         const [opcionHemodinamia] = await db.query(
             "SELECT estatus FROM tipo_operaciones WHERE id = 2"
         );
-        
+
         const hemodinamiaActiva = opcionHemodinamia.length > 0 && parseInt(opcionHemodinamia[0].estatus) === 1;
 
-        // 2. Establecemos el idioma de la sesión a español
+        // 2. Establecemos el idioma a español
         await db.query("SET lc_time_names = 'es_ES'");
 
-        // 3. Base de la consulta SQL
+        // 3. Base de la consulta SQL (Agregamos el filtro por centro_salud_id)
         let sql = `
             SELECT 
                 s.*, 
@@ -312,30 +333,31 @@ const getSolicitudesPendientesAreaMedicaOperados = async (req, res) => {
             INNER JOIN pacientes p ON s.paciente_id = p.id
             LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
             WHERE s.estatus_solicitud_id IN (3)
+            AND s.centro_salud_id = ?
         `;
 
-        const params = [];
+        // Iniciamos params con el ID del centro
+        const params = [centro_salud_id];
 
         // 4. Si Hemodinamia es false, EXCLUIMOS solo las solicitudes donde tipo_operacion_id sea 2
         if (!hemodinamiaActiva) {
-            sql += ` AND (s.tipo_operacion_id != 2 OR s.tipo_operacion_id IS NULL)`; 
+            sql += ` AND (s.tipo_operacion_id != 2 OR s.tipo_operacion_id IS NULL)`;
         }
 
-        // 5. Agregamos el filtro de fecha_cita dinámicamente
+        // 5. Filtro de fechas
         if (fechaInicio && fechaFin) {
             sql += ` AND DATE(s.fecha_cita) BETWEEN ? AND ?`;
             params.push(fechaInicio, fechaFin);
         }
 
-        // 6. Agregamos el ordenamiento al final
+        // 6. Ordenamiento
         sql += ` ORDER BY s.fecha_cita ASC`;
 
-        // 7. Ejecutamos la consulta con sus parámetros
+        // 7. Ejecución
         const [rows] = await db.query(sql, params);
 
         res.json(rows);
     } catch (error) {
-        // Aproveché de corregir el nombre de la función en el console.error para que el log sea exacto
         console.error("Error en getSolicitudesPendientesAreaMedicaOperados:", error);
         res.status(500).json({ error: error.message });
     }
@@ -487,7 +509,7 @@ const fechaSQL = (date) => {
 
 // --- FINALIZAR PROCESO ADMINISTRATIVO ---
 const finalizarVerificacion = async (req, res) => {
-    const { id } = req.params; 
+    const { id } = req.params;
 
     const {
         tipo_operacion_id,
@@ -507,7 +529,7 @@ const finalizarVerificacion = async (req, res) => {
     if (observacion_general !== undefined) { camposActualizar.push('observacion_general = ?'); valores.push(observacion_general); }
     if (fecha_operacion !== undefined) { camposActualizar.push('fecha_operacion = ?'); valores.push(fecha_operacion); }
     if (medico_id !== undefined) { camposActualizar.push('medico_id = ?'); valores.push(medico_id); }
-    
+
     // Nueva línea para el marcapasos
     if (tipo_marca_paso_id !== undefined) { camposActualizar.push('tipo_marca_paso_id = ?'); valores.push(tipo_marca_paso_id); }
 
@@ -595,7 +617,7 @@ const finalizarVerificacion = async (req, res) => {
 
         // Ejecutar el UPDATE con los campos que se hayan acumulado
         const queryUpdate = `UPDATE registrar_solicitud_pacientes SET ${camposActualizar.join(', ')} WHERE id = ?`;
-        valores.push(id); 
+        valores.push(id);
 
         await connection.query(queryUpdate, valores);
         await connection.commit();
@@ -823,7 +845,7 @@ const PacientesConSolicitudesActualizados = async (req, res) => {
             LEFT JOIN lista_centro_salud cs ON s.centro_salud_id = cs.id
             WHERE p.actualizado = 1 AND s.estatus_solicitud_id = 1
         `;
-        
+
         const params = [];
 
         // 3. Agregamos las condiciones dinámicamente si vienen los parámetros
@@ -848,7 +870,7 @@ const PacientesConSolicitudesActualizados = async (req, res) => {
         const [rows] = await db.query(sql, params);
 
         if (rows.length === 0) {
-            return res.status(200).json([]); 
+            return res.status(200).json([]);
         }
 
         res.status(200).json(rows);
@@ -868,11 +890,11 @@ const getMarcapasoById = async (req, res) => {
     try {
         const sql = 'SELECT marcapaso FROM registrar_solicitud_pacientes WHERE id = ?';
         const [rows] = await db.query(sql, [id]);
-        
+
         if (rows.length === 0) {
             return res.status(404).json({ message: 'Solicitud no encontrada' });
         }
-        
+
         res.json(rows[0]);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -931,5 +953,5 @@ module.exports = {
     getSolicitudesPendientesAreaMedicaOperados,
     getMarcapasoById,
     updateMarcapaso,
-  
+
 };
