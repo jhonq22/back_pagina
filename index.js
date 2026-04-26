@@ -44,15 +44,44 @@ const noticiasRoutes = require('./routes/intranet/noticiasRoutes');
 const galeriaRoutes = require('./routes/intranet/galeriaRoutes');
 const baseLegalesRoutes = require('./routes/intranet/baseLegalesRoutes');
 
+// Importar el Middleware de Autenticación
+const verificarToken = require('./middlewares/authMiddleware');
+
+
 const app = express();
 
 // Middlewares
 app.use(cors()); // Permite conexiones externas
 app.use(express.json()); // Permite recibir JSON en el body
 
-// Rutas
-app.use('/api/pacientes', pacienteRoutes);
+
+
 app.use('/api/users', userRoutes);
+
+
+//NO MIGRAR//
+app.use('/api/noticias', noticiasRoutes);
+app.use('/api/galeria', galeriaRoutes);
+app.use('/api/base-legales', baseLegalesRoutes);
+
+
+// Ruta base de prueba
+app.get('/', (req, res) => {
+    res.send('API REST Salud funcionando correctamente');
+});
+
+// ==========================================
+// 🛡️ 3. APLICAR BARRERA DE SEGURIDAD
+// ==========================================
+// Todo lo que pase de esta línea hacia abajo exigirá un token válido obligatoriamente
+
+
+app.use(verificarToken);
+
+// ==========================================
+// 🔒 4. RUTAS PROTEGIDAS (Requieren token)
+// ==========================================
+app.use('/api/pacientes', pacienteRoutes);
 app.use('/api/archivos', archivoRoutes);
 app.use('/api/solicitudes', solicitudRoutes);
 app.use('/api/listas', tipoListaRoutes);
@@ -74,8 +103,6 @@ app.use('/api/paraclinicos', paraclinicosRoutes);
 app.use('/api/examen-fisico', examenFisicoRoutes);
 app.use('/api/medicos', medicosRoutes);
 app.use('/api/reportes', reportesRoutes);
-app.use('/api/galeria', galeriaRoutes);
-app.use('/api/base-legales', baseLegalesRoutes);
 app.use('/api/hemodinamia', hemodinamiaRoutes);
 app.use('/api/consultas', consultasRoutes);
 app.use('/api/paraclinicos-consultas', paraclinicosConsultasRoutes);
@@ -84,14 +111,13 @@ app.use('/api/cateterismo-terapeutico-consulta', cateterismoTerapeuticoConsultaR
 
 
 
-//NO MIGRAR//
-app.use('/api/noticias', noticiasRoutes);
 
 
-// Ruta base de prueba
-app.get('/', (req, res) => {
-    res.send('API REST Salud funcionando correctamente');
-});
+
+
+
+
+
 
 // Iniciar servidor
 const PORT = process.env.PORT || 3000;

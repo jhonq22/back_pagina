@@ -42,8 +42,8 @@ const login = async (req, res) => {
                 idPaciente: idPaciente,
                 centro_salud_id: user.centro_salud_id,
                 multi_roles: multiRolesArray,
-                marcapaso: Boolean(user.marcapaso),     // <--- Agregado al token
-                hemodinamia: Boolean(user.hemodinamia)  // <--- Agregado al token
+                marcapaso: Boolean(user.marcapaso),
+                hemodinamia: Boolean(user.hemodinamia)
             },
             process.env.JWT_SECRET || 'secret_key_123',
             { expiresIn: '8h' }
