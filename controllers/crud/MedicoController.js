@@ -67,12 +67,96 @@ const MedicoController = {
         }
     },
 
+    // --- NUEVO MÉTODO: GET MEDICO CON DATOS DE USUARIO ---
+    getMedicoUsuario: async (req, res) => {
+        try {
+            const sql = `
+            SELECT 
+                m.*,
+                f.id AS firma_registro_id,
+                f.nombre_archivo,
+                f.especialidad_id,
+                e.descripcion,
+                u.usuario,
+                u.nombres AS nombres_usuario,
+                u.rol_id,
+                u.centro_salud_id,
+                u.estatus AS estatus_usuario,
+                mrm.roles_medico,
+                mrm.marcapaso,    
+                mrm.hemodinamia,
+                lcs.descripcion AS centro_salud_descripcion
+            FROM registro_medicos m
+            LEFT JOIN firmas_medicos f ON m.id = f.medico_id
+            LEFT JOIN especialidades e ON f.especialidad_id = e.id
+            LEFT JOIN users u ON m.usuario_id = u.id
+            LEFT JOIN lista_centro_salud lcs ON u.centro_salud_id = lcs.id
+            LEFT JOIN multi_roles_medicos mrm ON u.id = mrm.usuario_id
+            ORDER BY m.primerApellido ASC, m.primerNombre ASC
+        `;
+
+            const [rows] = await db.query(sql);
+
+            // Agrupamos igual que en getMedicos, pero ahora el objeto raíz 
+            // contendrá también la info del usuario y sus roles.
+            const medicosAgrupados = rows.reduce((acc, row) => {
+                const medicoExistente = acc.find(m => m.id === row.id);
+
+                const infoFirma = row.firma_registro_id ? {
+                    id: row.firma_registro_id,
+                    especialidad: row.descripcion,
+                    especialidad_id: row.especialidad_id,
+                    archivo: row.nombre_archivo,
+                } : null;
+
+                if (medicoExistente) {
+                    if (infoFirma) medicoExistente.especialidades.push(infoFirma);
+                } else {
+                    const nuevoMedico = {
+                        ...row,
+                        especialidades: infoFirma ? [infoFirma] : []
+                    };
+                    
+                    // Limpiamos los campos agrupados de la firma para el objeto principal
+                    delete nuevoMedico.firma_registro_id;
+                    delete nuevoMedico.nombre_especialidad;
+                    delete nuevoMedico.especialidad_id;
+                    delete nuevoMedico.nombre_archivo;
+                    // Borramos la 'descripcion' suelta de la especialidad para evitar confusiones, 
+                    // ya que está dentro del array 'especialidades' (y tenemos centro_salud_descripcion)
+                    delete nuevoMedico.descripcion; 
+
+                    // Parsear roles_medico si viene como string JSON desde la BD
+                    if (typeof nuevoMedico.roles_medico === 'string') {
+                        try {
+                            nuevoMedico.roles_medico = JSON.parse(nuevoMedico.roles_medico);
+                        } catch (e) {
+                            // Si no es JSON válido, lo dejamos como está
+                        }
+                    }
+
+                    // Convertir tinyint (0/1) a booleanos para el frontend (opcional pero recomendado para Vue)
+                    nuevoMedico.marcapaso = !!nuevoMedico.marcapaso;
+                    nuevoMedico.hemodinamia = !!nuevoMedico.hemodinamia;
+
+                    acc.push(nuevoMedico);
+                }
+                return acc;
+            }, []);
+
+            res.json(medicosAgrupados);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    },
+
     saveMedico: async (req, res) => {
         const {
             id, cedula, primerNombre, segundoNombre, primerApellido,
             segundoApellido, fechaNacimiento, edad, sexo, estadoCivil,
             id_estado, id_municipio, id_parroquia, direccion_actual,
-            telefono_celular, telefono_local, correo, estatus, mpps // <-- Agregado mpps aquí
+            telefono_celular, telefono_local, correo, estatus, mpps,
+            usuario_id
         } = req.body;
 
         if (!cedula || !primerNombre || !primerApellido) {
@@ -90,14 +174,13 @@ const MedicoController = {
             }
 
             if (id) {
-                // Update - Agregado mpps en el SET
                 const sql = `
                     UPDATE registro_medicos SET 
                         cedula = ?, primerNombre = ?, segundoNombre = ?, primerApellido = ?, 
                         segundoApellido = ?, fechaNacimiento = ?, edad = ?, sexo = ?, 
                         estadoCivil = ?, id_estado = ?, id_municipio = ?, id_parroquia = ?, 
                         direccion_actual = ?, telefono_celular = ?, telefono_local = ?, 
-                        correo = ?, estatus = ?, mpps = ? 
+                        correo = ?, estatus = ?, mpps = ?, usuario_id = ? 
                     WHERE id = ?`;
 
                 await db.query(sql, [
@@ -105,26 +188,26 @@ const MedicoController = {
                     segundoApellido, fechaNacimiento, edad, sexo,
                     estadoCivil, id_estado, id_municipio, id_parroquia,
                     direccion_actual, telefono_celular, telefono_local,
-                    correo, estatus, mpps, id // <-- Agregado mpps en el array de valores
+                    correo, estatus, mpps, usuario_id, id
                 ]);
 
                 return res.json({ message: 'Médico actualizado con éxito' });
             } else {
-                // Insert - Agregado mpps en los campos y el array de valores
                 const sql = `
                     INSERT INTO registro_medicos (
                         cedula, primerNombre, segundoNombre, primerApellido, 
                         segundoApellido, fechaNacimiento, edad, sexo, 
                         estadoCivil, id_estado, id_municipio, id_parroquia, 
                         direccion_actual, telefono_celular, telefono_local, 
-                        correo, estatus, mpps
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`; // <-- Agregado el signo de interrogación al final
+                        correo, estatus, mpps, usuario_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`; 
 
                 const [result] = await db.query(sql, [
                     cedula, primerNombre, segundoNombre, primerApellido,
                     segundoApellido, fechaNacimiento, edad, sexo,
                     estadoCivil, id_estado, id_municipio, id_parroquia,
-                    direccion_actual, telefono_celular, telefono_local, correo, mpps // <-- Agregado mpps
+                    direccion_actual, telefono_celular, telefono_local, 
+                    correo, mpps, usuario_id
                 ]);
 
                 return res.status(201).json({ message: 'Médico creado con éxito', id: result.insertId });
@@ -144,12 +227,6 @@ const MedicoController = {
         }
     },
 
-    // --- NUEVOS MÉTODOS PARA FIRMAS Y ESPECIALIDADES ---
-
-    /**
-     * Registra la especialidad y sube la firma del médico
-     * Se espera un multipart/form-data con: medico_id, especialidad_id y el archivo 'firma'
-     */
     saveFirmaEspecialidad: async (req, res) => {
         try {
             if (!req.file) {
@@ -160,14 +237,11 @@ const MedicoController = {
             const nombre_archivo = req.file.originalname;
             const ruta_real = req.file.path;
 
-            // Validar campos requeridos
             if (!medico_id || !especialidad_id) {
-                // Si faltan datos, borrar el archivo subido para no dejar basura
                 if (fs.existsSync(ruta_real)) fs.unlinkSync(ruta_real);
                 return res.status(400).json({ error: 'medico_id y especialidad_id son obligatorios' });
             }
 
-            // Encriptamos la ruta antes de guardar
             const ruta_encriptada = encrypt(ruta_real);
 
             const sql = `
@@ -183,17 +257,13 @@ const MedicoController = {
             });
 
         } catch (error) {
-            // Borrar archivo si hubo error en base de datos
             if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
             res.status(500).json({ error: error.message });
         }
     },
 
-    /**
-     * Obtiene la firma en Base64 para visualizarla en el frontend
-     */
     getFirmaBase64: async (req, res) => {
-        const { id } = req.params; // ID de la tabla firmas_medicos
+        const { id } = req.params;
         try {
             const [rows] = await db.query('SELECT * FROM firmas_medicos WHERE id = ?', [id]);
             if (rows.length === 0) return res.status(404).json({ message: 'Registro de firma no encontrado' });

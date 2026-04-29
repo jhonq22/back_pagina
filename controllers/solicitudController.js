@@ -765,10 +765,10 @@ const PacientesConSolicitudes = async (req, res) => {
 
 const PacientesConSolicitudesNoActualizados = async (req, res) => {
     try {
-        // 1. Extraemos los parámetros de la URL (Query String)
-        const { fechaInicio, fechaFin } = req.query;
+        // 1. Extraemos los parámetros incluyendo centro_salud_id
+        const { fechaInicio, fechaFin, centro_salud_id } = req.query;
 
-        // 2. Definimos la base de la consulta SQL
+        // 2. Definimos la base de la consulta SQL (Nota: p.actualizado = 0)
         let sql = `
             SELECT
                 p.id as paciente_id, 
@@ -793,37 +793,49 @@ const PacientesConSolicitudesNoActualizados = async (req, res) => {
 
         const params = [];
 
-        // 3. Aplicamos el filtro de fechas solo si ambos campos están presentes
+        // 3. Agregamos el filtro de centro_salud_id si se recibe por parámetro
+        if (centro_salud_id) {
+            sql += ` AND s.centro_salud_id = ?`;
+            params.push(centro_salud_id);
+        }
+
+        // 4. Aplicamos el filtro de fechas dinámicamente
         if (fechaInicio && fechaFin) {
             sql += ` AND DATE(s.fecha_cita) BETWEEN ? AND ?`;
             params.push(fechaInicio, fechaFin);
+        } else if (fechaInicio) {
+            sql += ` AND DATE(s.fecha_cita) >= ?`;
+            params.push(fechaInicio);
+        } else if (fechaFin) {
+            sql += ` AND DATE(s.fecha_cita) <= ?`;
+            params.push(fechaFin);
         }
 
-        // 4. Agregamos el ordenamiento final
+        // 5. Agregamos el ordenamiento final
         sql += ` ORDER BY s.fecha_creacion DESC`;
 
-        // 5. Ejecutamos la consulta usando parámetros para evitar SQL Injection
+        // 6. Ejecutamos la consulta
         const [rows] = await db.query(sql, params);
 
         if (rows.length === 0) {
             return res.status(200).json([]);
         }
 
-        // Retornamos los resultados
         res.json(rows);
     } catch (error) {
         console.error("Error en PacientesConSolicitudesNoActualizados:", error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
     }
 };
 
 
 const PacientesConSolicitudesActualizados = async (req, res) => {
     try {
-        // 1. Recibimos los parámetros por query string (ej: ?fechaInicio=2023-01-01&fechaFin=2023-12-31)
-        const { fechaInicio, fechaFin } = req.query;
+        // 1. Recibimos los parámetros por query string
+        // Agregamos centro_salud_id a la desestructuración
+        const { fechaInicio, fechaFin, centro_salud_id } = req.query;
 
-        // 2. Base de la consulta y arreglo de parámetros
+        // 2. Base de la consulta
         let sql = `
             SELECT
                 p.id as paciente_id, 
@@ -848,25 +860,28 @@ const PacientesConSolicitudesActualizados = async (req, res) => {
 
         const params = [];
 
-        // 3. Agregamos las condiciones dinámicamente si vienen los parámetros
+        // 3. Agregamos el filtro de centro_salud_id si existe
+        if (centro_salud_id) {
+            sql += ` AND s.centro_salud_id = ?`;
+            params.push(centro_salud_id);
+        }
+
+        // 4. Agregamos las condiciones de fecha dinámicamente
         if (fechaInicio && fechaFin) {
-            // Si vienen ambas, filtramos por el rango
             sql += ` AND DATE(s.fecha_cita) BETWEEN ? AND ?`;
             params.push(fechaInicio, fechaFin);
         } else if (fechaInicio) {
-            // Si por alguna razón solo mandan el inicio
             sql += ` AND DATE(s.fecha_cita) >= ?`;
             params.push(fechaInicio);
         } else if (fechaFin) {
-            // Si solo mandan el fin
             sql += ` AND DATE(s.fecha_cita) <= ?`;
             params.push(fechaFin);
         }
 
-        // 4. Agregamos el ordenamiento al final
+        // 5. Agregamos el ordenamiento al final
         sql += ` ORDER BY s.fecha_creacion DESC`;
 
-        // 5. Ejecutamos pasando el arreglo de parámetros
+        // 6. Ejecutamos la consulta
         const [rows] = await db.query(sql, params);
 
         if (rows.length === 0) {

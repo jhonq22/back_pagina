@@ -63,6 +63,9 @@ const handleMulterError = (req, res, next) => {
 // Listar todos los médicos
 router.get('/medicos', MedicoController.getMedicos);
 
+router.get('/usuario', MedicoController.getMedicoUsuario);
+
+
 // Guardar nuevo o actualizar existente (Datos generales)
 router.post('/medicos', MedicoController.saveMedico);
 

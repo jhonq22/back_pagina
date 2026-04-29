@@ -13,6 +13,8 @@ const { confirmarCitas, eliminarTemporales, eliminarTemporalPorId } = require('.
 
 router.get('/pacientes-con-solicitudes', solicitudController.PacientesConSolicitudes);
 router.get('/pacientes-con-solicitudes-actualizados', solicitudController.PacientesConSolicitudesActualizados);
+
+// Haz lo mismo para la de no-actualizados:
 router.get('/pacientes-con-solicitudes-no-actualizados', solicitudController.PacientesConSolicitudesNoActualizados);
 router.get('/ver-temporales/:centro_salud_id', obtenerPacientesTemporales);
 
