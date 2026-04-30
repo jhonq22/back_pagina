@@ -70,7 +70,7 @@ router.get('/usuario', MedicoController.getMedicoUsuario);
 router.post('/medicos', MedicoController.saveMedico);
 
 // Desactivar médico por ID
-router.delete('/medicos/:id', MedicoController.deleteMedico);
+router.patch('/medicos/:id', MedicoController.deleteMedico);
 
 // ==========================================
 // SECCIÓN: ESPECIALIDAD Y FIRMA

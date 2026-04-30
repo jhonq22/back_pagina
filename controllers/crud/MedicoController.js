@@ -217,15 +217,25 @@ const MedicoController = {
         }
     },
 
-    deleteMedico: async (req, res) => {
-        const { id } = req.params;
-        try {
-            await db.query('UPDATE registro_medicos SET estatus = 0 WHERE id = ?', [id]);
-            res.json({ message: 'Médico desactivado correctamente' });
-        } catch (error) {
-            res.status(500).json({ error: error.message });
+deleteMedico: async (req, res) => {
+    const { id } = req.params;
+    const { estatus } = req.body; // Recibimos el estado (1 o 0) desde el cliente
+
+    try {
+        // Validamos que el estatus venga en la petición
+        if (estatus === undefined) {
+            return res.status(400).json({ error: 'El campo estatus es obligatorio' });
         }
-    },
+
+        await db.query('UPDATE registro_medicos SET estatus = ? WHERE id = ?', [estatus, id]);
+
+        res.json({ 
+            message: `Médico ${estatus == 1 ? 'activado' : 'desactivado'} correctamente` 
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+},
 
     saveFirmaEspecialidad: async (req, res) => {
         try {
