@@ -17,7 +17,7 @@ router.get('/list', NoticiasController.getNoticias);
 router.get('/destacadas', NoticiasController.getNoticiasDestacadas);
 
 // 4. RUTAS CON PARÁMETROS DINÁMICOS (Siempre al final)
-// Si esta ruta estuviera arriba, se "comería" a /list, /destacadas y /estructura
+
 router.get('/:id', NoticiasController.getNoticiaById); 
 
 // 5. OPERACIONES DE ESCRITURA

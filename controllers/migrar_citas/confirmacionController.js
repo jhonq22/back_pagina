@@ -40,7 +40,6 @@ const confirmarCitas = async (req, res) => {
             // ==========================================
             // NUEVA VALIDACIÓN: Evitar solicitudes duplicadas
             // ==========================================
-            // Nos aseguramos de manejar nulos en la codificación para no tener falsos positivos
             const codGobierno = temp.codificacion_buen_gobierno || '';
 
             const [solicitudActiva] = await connection.query(
@@ -53,7 +52,6 @@ const confirmarCitas = async (req, res) => {
                 [temp.cedula, codGobierno]
             );
 
-            // Si encuentra una solicitud en true (1) y que no sea 6, bloquea y pinta error
             if (solicitudActiva.length > 0) {
                 await connection.rollback();
                 return res.status(400).json({
@@ -101,12 +99,28 @@ const confirmarCitas = async (req, res) => {
                 pacienteId = nuevo.insertId;
             }
 
-            // Crear solicitud
+            // ==========================================
+            // LÓGICA DE TIPO DE OPERACIÓN Y MARCAPASO
+            // ==========================================
+            const tipoOp = temp.tipo_operacion ? temp.tipo_operacion.toUpperCase().trim() : '';
+            
+            let valorMarcapaso = 0; 
+            let tipoOperacionId = 1; // Valor por defecto en caso de que no coincida con ninguno
+            
+            if (tipoOp === 'MARCAPASO') {
+                valorMarcapaso = 1;
+                tipoOperacionId = 1;
+            } else if (tipoOp === 'HEMODINAMIA') {
+                valorMarcapaso = 0;
+                tipoOperacionId = 2;
+            }
+
+            // Crear solicitud usando las variables dinámicas
             await connection.query(
                 `INSERT INTO registrar_solicitud_pacientes 
-                (paciente_id, fecha_cita, estatus_solicitud_id, tipo_operacion_id, centro_salud_id, estatus, fecha_creacion) 
-                VALUES (?, ?, 1, 1, ?, 1, NOW())`,
-                [pacienteId, temp.fecha_cita_asignada, centro_salud_id]
+                (paciente_id, fecha_cita, estatus_solicitud_id, tipo_operacion_id, centro_salud_id, estatus, fecha_creacion, marcapaso) 
+                VALUES (?, ?, 8, ?, ?, 1, NOW(), ?)`,
+                [pacienteId, temp.fecha_cita_asignada, tipoOperacionId, centro_salud_id, valorMarcapaso]
             );
 
             // Marcar procesado
@@ -131,25 +145,35 @@ const confirmarCitas = async (req, res) => {
 };
 
 const eliminarTemporales = async (req, res) => {
-    // Obtenemos una conexión del pool
+    // 1. Obtenemos el parámetro de la URL
+    const { centro_salud_id } = req.params;
+
+    // Validación básica para asegurar que el ID existe
+    if (!centro_salud_id) {
+        return res.status(400).json({
+            status: false,
+            msg: 'Es necesario el ID del centro de salud.'
+        });
+    }
+
     const connection = await db.getConnection();
 
     try {
-        // Ejecutamos la consulta de eliminación
+        // 2. Ejecutamos la consulta filtrando por estatus Y por el hospital específico
         const [result] = await connection.query(
-            'DELETE FROM pacientes_cita_temporal WHERE estatus = "en_espera"'
+            'DELETE FROM pacientes_cita_temporal WHERE estatus = "en_espera" AND centro_salud_id = ?',
+            [centro_salud_id]
         );
 
-        // Verificamos si se eliminó algo
         if (result.affectedRows > 0) {
             return res.json({
                 status: true,
-                msg: `Se han eliminado ${result.affectedRows} registros en espera correctamente.`
+                msg: `Se han eliminado ${result.affectedRows} registros en espera para este hospital.`
             });
         } else {
             return res.json({
                 status: true,
-                msg: 'No se encontraron registros en espera para eliminar.'
+                msg: 'No se encontraron registros en espera para este hospital.'
             });
         }
 
@@ -161,11 +185,9 @@ const eliminarTemporales = async (req, res) => {
             error: error.message
         });
     } finally {
-        // Importante: Liberar la conexión siempre
         if (connection) connection.release();
     }
 };
-
 
 const eliminarTemporalPorId = async (req, res) => {
     // Obtenemos el ID de los parámetros de la ruta

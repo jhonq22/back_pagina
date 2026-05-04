@@ -54,7 +54,7 @@ const subirExcelTemporal = async (req, res) => {
 
         if (datosRaw.length === 0) return res.status(200).json({ msg: 'El Excel está vacío.' });
 
-        // --- 1. VALIDACIÓN DE NULOS/VACÍOS Y DUPLICADOS DENTRO DEL MISMO EXCEL ---
+        // --- 1. VALIDACIÓN DE NULOS/VACÍOS Y DUPLICADOS ---
         const cedulasEnExcel = new Set();
         const codigosEnExcel = new Set();
 
@@ -62,45 +62,42 @@ const subirExcelTemporal = async (req, res) => {
             const cedula = fila['CEDULA'];
             const codigo = fila['CODIGO 1X10'];
 
-            // NUEVA VALIDACIÓN: Rechazar si Cédula o Código 1x10 vienen vacíos, null o undefined
             if (cedula === null || cedula === undefined || String(cedula).trim() === '') {
-                return res.status(400).json({ msg: 'Error: El archivo Excel contiene registros sin CÉDULA. Archivo rechazado.' });
+                return res.status(400).json({ msg: 'Error: El archivo Excel contiene registros sin CÉDULA.' });
             }
             if (codigo === null || codigo === undefined || String(codigo).trim() === '') {
-                return res.status(400).json({ msg: `Error: El archivo Excel contiene registros sin CÓDIGO 1X10 (Cédula afectada: ${cedula}). Archivo rechazado.` });
+                return res.status(400).json({ msg: `Error: El archivo Excel contiene registros sin CÓDIGO 1X10 (Cédula: ${cedula}).` });
             }
 
             if (cedulasEnExcel.has(cedula)) {
-                return res.status(400).json({ msg: `Error: El archivo Excel contiene la Cédula duplicada: ${cedula}` });
+                return res.status(400).json({ msg: `Error: Cédula duplicada en el Excel: ${cedula}` });
             }
             if (codigosEnExcel.has(codigo)) {
-                return res.status(400).json({ msg: `Error: El archivo Excel contiene el Código 1x10 duplicado: ${codigo}` });
+                return res.status(400).json({ msg: `Error: Código 1x10 duplicado en el Excel: ${codigo}` });
             }
 
             cedulasEnExcel.add(cedula);
             codigosEnExcel.add(codigo);
         }
 
-        // --- 2. VALIDACIÓN CONTRA LA BASE DE DATOS (Mismo Hospital y En Espera) ---
+        // --- 2. VALIDACIÓN CONTRA LA BASE DE DATOS ---
         const listaCedulas = Array.from(cedulasEnExcel);
         const listaCodigos = Array.from(codigosEnExcel);
 
-        if (listaCedulas.length > 0) {
-            const [duplicadosBD] = await db.query(
-                `SELECT cedula, codificacion_buen_gobierno 
-                 FROM pacientes_cita_temporal 
-                 WHERE estatus = 'en_espera' 
-                 AND centro_salud_id = ?
-                 AND (cedula IN (?) OR (codificacion_buen_gobierno IN (?) AND codificacion_buen_gobierno IS NOT NULL))`,
-                [centro_salud_id, listaCedulas, listaCodigos.length > 0 ? listaCodigos : ['']]
-            );
+        const [duplicadosBD] = await db.query(
+            `SELECT cedula, codificacion_buen_gobierno 
+             FROM pacientes_cita_temporal 
+             WHERE estatus = 'en_espera' 
+             AND centro_salud_id = ?
+             AND (cedula IN (?) OR (codificacion_buen_gobierno IN (?) AND codificacion_buen_gobierno IS NOT NULL))`,
+            [centro_salud_id, listaCedulas, listaCodigos.length > 0 ? listaCodigos : ['']]
+        );
 
-            if (duplicadosBD.length > 0) {
-                const item = duplicadosBD[0];
-                const esCedula = listaCedulas.includes(item.cedula);
-                const desc = esCedula ? `Cédula ${item.cedula}` : `Código 1x10 ${item.codificacion_buen_gobierno}`;
-                return res.status(400).json({ msg: `Carga cancelada. Ya existe un registro en espera en este hospital con: ${desc}` });
-            }
+        if (duplicadosBD.length > 0) {
+            const item = duplicadosBD[0];
+            const esCedula = listaCedulas.includes(item.cedula);
+            const desc = esCedula ? `Cédula ${item.cedula}` : `Código 1x10 ${item.codificacion_buen_gobierno}`;
+            return res.status(400).json({ msg: `Carga cancelada. Ya existe un registro en espera con: ${desc}` });
         }
 
         // --- 3. PROCESO DE ASIGNACIÓN DE CITAS ---
@@ -131,7 +128,6 @@ const subirExcelTemporal = async (req, res) => {
         const pacientesParaInsertar = [];
 
         for (const fila of datosRaw) {
-            // Ya validamos arriba que la cédula y el código existen, pero dejamos este continue como red de seguridad
             if (!fila['CEDULA']) continue;
 
             let asignado = false;
@@ -158,8 +154,8 @@ const subirExcelTemporal = async (req, res) => {
 
                 if (cuposDisponiblesHoy > 0) {
                     pacientesParaInsertar.push([
-                        fila['CODIGO 1X10'], // Ya sabemos que no es null
-                        fila['CEDULA'],      // Ya sabemos que no es null
+                        fila['CODIGO 1X10'],
+                        fila['CEDULA'],
                         fila['PRIMER NOMBRE'],
                         fila['SEGUNDO NOMBRE'] || null,
                         fila['PRIMER APELLIDO'],
@@ -170,7 +166,8 @@ const subirExcelTemporal = async (req, res) => {
                         formatExcelDate(fila['FECHA NACIMIENTO']),
                         fechaStr,
                         (fila['ESTADO'] || '') + ", " + (fila['MUNICIPIO'] || ''),
-                        centro_salud_id
+                        centro_salud_id,
+                        fila['TIPO_OPERACION'] || null // <--- NUEVO CAMPO AQUI
                     ]);
                     cuposDisponiblesHoy--;
                     asignado = true;
@@ -185,7 +182,9 @@ const subirExcelTemporal = async (req, res) => {
         if (pacientesParaInsertar.length > 0) {
             await db.query(
                 `INSERT INTO pacientes_cita_temporal 
-                (codificacion_buen_gobierno, cedula, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, telefono2, correo, fecha_nacimiento, fecha_cita_asignada, direccion, centro_salud_id) 
+                (codificacion_buen_gobierno, cedula, primer_nombre, segundo_nombre, 
+                 primer_apellido, segundo_apellido, telefono, telefono2, correo, 
+                 fecha_nacimiento, fecha_cita_asignada, direccion, centro_salud_id, tipo_operacion) 
                 VALUES ?`,
                 [pacientesParaInsertar]
             );
@@ -198,7 +197,6 @@ const subirExcelTemporal = async (req, res) => {
         res.status(500).json({ msg: 'Error interno del servidor' });
     }
 };
-
 const obtenerPacientesTemporales = async (req, res) => {
     try {
         // Obtenemos el id desde los parámetros de la URL o del query string

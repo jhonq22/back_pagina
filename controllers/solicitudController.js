@@ -768,9 +768,11 @@ const PacientesConSolicitudesNoActualizados = async (req, res) => {
         // 1. Extraemos los parámetros incluyendo centro_salud_id
         const { fechaInicio, fechaFin, centro_salud_id } = req.query;
 
-        // 2. Definimos la base de la consulta SQL (Nota: p.actualizado = 0)
+        // 2. Definimos la base de la consulta SQL
+        // CAMBIO: s.estatus_solicitud_id IN (1, 8) para incluir ambos tipos de solicitudes
         let sql = `
             SELECT
+                s.id as solicitud_id,
                 p.id as paciente_id, 
                 p.primer_nombre, 
                 p.primer_apellido, 
@@ -781,6 +783,7 @@ const PacientesConSolicitudesNoActualizados = async (req, res) => {
                 p.telefono_celular, 
                 p.telefono_local,
                 s.tipo_marca_paso_id, 
+                s.marcapaso,
                 DATE_FORMAT(s.fecha_cita, '%d/%m/%y') AS fecha_cita,
                 es.nombre_estatus AS estatus_nombre,
                 cs.descripcion AS centro_salud_nombre
@@ -788,7 +791,8 @@ const PacientesConSolicitudesNoActualizados = async (req, res) => {
             LEFT JOIN pacientes p ON s.paciente_id = p.id
             LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
             LEFT JOIN lista_centro_salud cs ON s.centro_salud_id = cs.id
-            WHERE p.actualizado = 0 AND s.estatus_solicitud_id = 1
+            WHERE p.actualizado = 0 
+              AND s.estatus_solicitud_id IN (1, 8)
         `;
 
         const params = [];

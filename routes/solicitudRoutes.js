@@ -53,7 +53,7 @@ router.put('/update-tipo-operacion-y-marca-paso/:id', solicitudController.update
 // Rutas de Migración de Citas
 router.post('/subir-excel-temporal', upload.single('archivo'), subirExcelTemporal);
 router.post('/confirmar-citas', confirmarCitas);
-router.post('/eliminar-temporales', eliminarTemporales);
+router.post('/eliminar-temporales/:centro_salud_id', eliminarTemporales);
 // El ":id" permite que la URL sea algo como /eliminar-temporal/5
 router.delete('/eliminar-temporal/:id', eliminarTemporalPorId);
 router.get('/estado-hospital/:centro_salud_id', obtenerEstadoHospital);
