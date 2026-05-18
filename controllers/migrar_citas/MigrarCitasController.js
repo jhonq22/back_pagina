@@ -54,26 +54,51 @@ const subirExcelTemporal = async (req, res) => {
 
         if (datosRaw.length === 0) return res.status(200).json({ msg: 'El Excel está vacío.' });
 
-        // --- 1. VALIDACIÓN DE NULOS/VACÍOS Y DUPLICADOS ---
+        // --- 1. VALIDACIÓN DE NULOS/VACÍOS, NÚMEROS Y DUPLICADOS ---
         const cedulasEnExcel = new Set();
         const codigosEnExcel = new Set();
 
-        for (const fila of datosRaw) {
-            const cedula = fila['CEDULA'];
-            const codigo = fila['CODIGO 1X10'];
+        // Definimos los campos que NO pueden llegar vacíos
+        const camposObligatorios = [
+            'CODIGO 1X10',
+            'CEDULA',
+            'PRIMER NOMBRE',
+            'PRIMER APELLIDO',
+            'FECHA NACIMIENTO'
+        ];
 
-            if (cedula === null || cedula === undefined || String(cedula).trim() === '') {
-                return res.status(400).json({ msg: 'Error: El archivo Excel contiene registros sin CÉDULA.' });
+        for (let i = 0; i < datosRaw.length; i++) {
+            const fila = datosRaw[i];
+            const filaExcelNum = i + 2; // +2 porque el índice 0 es la fila 2 en Excel (la fila 1 son los encabezados)
+
+            // Validar que los campos obligatorios no estén vacíos
+            for (const campo of camposObligatorios) {
+                if (fila[campo] === null || fila[campo] === undefined || String(fila[campo]).trim() === '') {
+                    return res.status(400).json({ 
+                        msg: `Error en la fila ${filaExcelNum} del Excel: El campo '${campo}' está vacío y es obligatorio.` 
+                    });
+                }
             }
-            if (codigo === null || codigo === undefined || String(codigo).trim() === '') {
-                return res.status(400).json({ msg: `Error: El archivo Excel contiene registros sin CÓDIGO 1X10 (Cédula: ${cedula}).` });
+
+            // Validar que la cédula sea SOLO números (sin V, sin guiones)
+            const cedulaStr = String(fila['CEDULA']).trim();
+            if (!/^\d+$/.test(cedulaStr)) {
+                return res.status(400).json({ 
+                    msg: `Error en la fila ${filaExcelNum}: La CÉDULA '${cedulaStr}' es inválida. Solo debe contener números (Ejemplo correcto: 2644841, no V264484).` 
+                });
             }
+            
+            // Reasignamos para asegurar que se maneje como string limpio en adelante
+            fila['CEDULA'] = cedulaStr; 
+
+            const cedula = fila['CEDULA'];
+            const codigo = String(fila['CODIGO 1X10']).trim();
 
             if (cedulasEnExcel.has(cedula)) {
-                return res.status(400).json({ msg: `Error: Cédula duplicada en el Excel: ${cedula}` });
+                return res.status(400).json({ msg: `Error: Cédula duplicada dentro del Excel: ${cedula}` });
             }
             if (codigosEnExcel.has(codigo)) {
-                return res.status(400).json({ msg: `Error: Código 1x10 duplicado en el Excel: ${codigo}` });
+                return res.status(400).json({ msg: `Error: Código 1x10 duplicado dentro del Excel: ${codigo}` });
             }
 
             cedulasEnExcel.add(cedula);
@@ -97,7 +122,7 @@ const subirExcelTemporal = async (req, res) => {
             const item = duplicadosBD[0];
             const esCedula = listaCedulas.includes(item.cedula);
             const desc = esCedula ? `Cédula ${item.cedula}` : `Código 1x10 ${item.codificacion_buen_gobierno}`;
-            return res.status(400).json({ msg: `Carga cancelada. Ya existe un registro en espera con: ${desc}` });
+            return res.status(400).json({ msg: `Carga cancelada. Ya existe un registro en espera en este hospital con: ${desc}` });
         }
 
         // --- 3. PROCESO DE ASIGNACIÓN DE CITAS ---
@@ -167,7 +192,7 @@ const subirExcelTemporal = async (req, res) => {
                         fechaStr,
                         (fila['ESTADO'] || '') + ", " + (fila['MUNICIPIO'] || ''),
                         centro_salud_id,
-                        fila['TIPO_OPERACION'] || null // <--- NUEVO CAMPO AQUI
+                        fila['TIPO_OPERACION'] || null 
                     ]);
                     cuposDisponiblesHoy--;
                     asignado = true;
@@ -197,6 +222,14 @@ const subirExcelTemporal = async (req, res) => {
         res.status(500).json({ msg: 'Error interno del servidor' });
     }
 };
+
+
+
+
+
+
+
+
 const obtenerPacientesTemporales = async (req, res) => {
     try {
         // Obtenemos el id desde los parámetros de la URL o del query string
