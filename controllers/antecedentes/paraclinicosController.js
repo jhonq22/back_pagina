@@ -105,16 +105,16 @@ const saveECO = async (req, res) => {
         induccion_isquemia_tipo_id, 
         frecuencia_cardiaca_maxima_estimada, 
         resultado_isquemia_id, 
-        territorio_isquemia_id, // <-- Nuevo
+        territorio_isquemia_id, 
         resultado_viabilidad_id,
-        territorio_viabilidad_id, // <-- Nuevo
-        // --- Nuevos campos Hemodinamia ---
+        territorio_viabilidad_id, 
         estado_funcion_sistolica_id_hemodinamia,
         funcion_sistolica_id_hemodinamia,
         funcion_diastolica_id_hemodinamia,
         trastorno_contractilidad_json_hemodinamia,
         descripcion_eco_hemodinamia,
-        descripcion_eco_doppler_hemodinamia
+        descripcion_eco_doppler_hemodinamia,
+        observaciones_eco // <-- Nuevo campo agregado
     } = req.body;
 
     try {
@@ -135,7 +135,8 @@ const saveECO = async (req, res) => {
                     resultado_viabilidad_id=?, territorio_viabilidad_id=?,
                     estado_funcion_sistolica_id_hemodinamia=?, funcion_sistolica_id_hemodinamia=?,
                     funcion_diastolica_id_hemodinamia=?, trastorno_contractilidad_json_hemodinamia=?,
-                    descripcion_eco_hemodinamia=?, descripcion_eco_doppler_hemodinamia=?
+                    descripcion_eco_hemodinamia=?, descripcion_eco_doppler_hemodinamia=?,
+                    observaciones_eco=? 
                 WHERE solicitud_paciente_id=?`,
                 [
                     fevi_simpson, fevi_z_score, ddvi, ddvi_z_score, ddvd,
@@ -145,15 +146,16 @@ const saveECO = async (req, res) => {
                     induccion_isquemia_tipo_id || null, 
                     frecuencia_cardiaca_maxima_estimada || null, 
                     resultado_isquemia_id || null, 
-                    territorio_isquemia_id || null, // <-- Nuevo valor
+                    territorio_isquemia_id || null, 
                     resultado_viabilidad_id || null,
-                    territorio_viabilidad_id || null, // <-- Nuevo valor
+                    territorio_viabilidad_id || null, 
                     estado_funcion_sistolica_id_hemodinamia || null,
                     funcion_sistolica_id_hemodinamia || null,
                     funcion_diastolica_id_hemodinamia || null,
                     trastornoContractilidadJson,
                     descripcion_eco_hemodinamia || null,
                     descripcion_eco_doppler_hemodinamia || null,
+                    observaciones_eco || null, // <-- Nuevo valor en el UPDATE
                     solicitud_paciente_id
                 ]
             );
@@ -171,9 +173,10 @@ const saveECO = async (req, res) => {
                 resultado_viabilidad_id, territorio_viabilidad_id,
                 estado_funcion_sistolica_id_hemodinamia, funcion_sistolica_id_hemodinamia,
                 funcion_diastolica_id_hemodinamia, trastorno_contractilidad_json_hemodinamia,
-                descripcion_eco_hemodinamia, descripcion_eco_doppler_hemodinamia
+                descripcion_eco_hemodinamia, descripcion_eco_doppler_hemodinamia,
+                observaciones_eco
             ) 
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, // 26 parámetros
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, // <-- 27 parámetros ahora
             [
                 solicitud_paciente_id, fevi_simpson, fevi_z_score, ddvi, ddvi_z_score, ddvd,
                 evaluacionValvularJson, 
@@ -182,15 +185,16 @@ const saveECO = async (req, res) => {
                 induccion_isquemia_tipo_id || null, 
                 frecuencia_cardiaca_maxima_estimada || null, 
                 resultado_isquemia_id || null, 
-                territorio_isquemia_id || null, // <-- Nuevo valor
+                territorio_isquemia_id || null, 
                 resultado_viabilidad_id || null,
-                territorio_viabilidad_id || null, // <-- Nuevo valor
+                territorio_viabilidad_id || null, 
                 estado_funcion_sistolica_id_hemodinamia || null,
                 funcion_sistolica_id_hemodinamia || null,
                 funcion_diastolica_id_hemodinamia || null,
                 trastornoContractilidadJson,
                 descripcion_eco_hemodinamia || null,
-                descripcion_eco_doppler_hemodinamia || null
+                descripcion_eco_doppler_hemodinamia || null,
+                observaciones_eco || null // <-- Nuevo valor en el INSERT
             ]
         );
         res.status(201).json({ message: 'ECO registrado' });
