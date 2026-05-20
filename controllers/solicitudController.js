@@ -165,7 +165,57 @@ const getSolicitudesPendientesPorCentro = async (req, res) => {
 
 
 
+const getSolicitudesOperados = async (req, res) => {
+    try {
+        // Obtenemos solo el centro_salud_id de los parámetros
+        const { centro_salud_id } = req.params;
+        const { fechaInicio, fechaFin } = req.query;
 
+        if (!centro_salud_id) {
+            return res.status(400).json({ error: "El ID del centro de salud es requerido." });
+        }
+
+        await db.query("SET lc_time_names = 'es_ES'");
+
+        // Cambiamos el WHERE para buscar IN (3, 6)
+        let sql = `
+            SELECT 
+                s.*, 
+                p.primer_nombre, p.primer_apellido, p.cedula, p.correo, p.telefono_celular, p.codificacion_buen_gobierno,
+                s.tipo_marca_paso_id,
+                es.nombre_estatus AS estatus_nombre,
+                rm.primerNombre AS medico_nombre,
+                rm.primerApellido AS medico_apellido,
+                tp.tipo_operacion as operacion,
+                DATE_FORMAT(s.fecha_operacion, '%e de %M de %Y') AS fecha_operacion,
+                DATE_FORMAT(s.fecha_cita, '%e de %M de %Y') AS fecha_solicitud
+            FROM registrar_solicitud_pacientes s
+            INNER JOIN pacientes p ON s.paciente_id = p.id
+            LEFT JOIN estatus_solicitudes es ON s.estatus_solicitud_id = es.id
+            LEFT JOIN registro_medicos rm ON s.medico_id = rm.id
+            LEFT JOIN tipo_operaciones tp ON s.tipo_operacion_id = tp.id
+            WHERE s.estatus_solicitud_id IN (3, 6) 
+            AND s.centro_salud_id = ?
+        `;
+
+        // Iniciamos params solo con el centro_salud_id
+        const params = [centro_salud_id];
+
+        if (fechaInicio && fechaFin) {
+            sql += ` AND DATE(s.fecha_operacion) BETWEEN ? AND ?`;
+            params.push(fechaInicio, fechaFin);
+        }
+
+        sql += ` ORDER BY s.fecha_cita ASC`;
+
+        const [rows] = await db.query(sql, params);
+
+        res.json(rows);
+    } catch (error) {
+        console.error("Error en getSolicitudesOperados:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
 
 
 
@@ -972,5 +1022,6 @@ module.exports = {
     getSolicitudesPendientesAreaMedicaOperados,
     getMarcapasoById,
     updateMarcapaso,
+    getSolicitudesOperados
 
 };

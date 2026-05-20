@@ -26,6 +26,7 @@ router.put('/update-marcapaso/:id', solicitudController.updateMarcapaso);
 // Rutas de Listado
 router.get('/', solicitudController.getSolicitudes);
 router.get('/dinamico/:id/:centro_salud_id', solicitudController.getSolicitudesEstatusDinamico);
+router.get('/operados/:centro_salud_id', solicitudController.getSolicitudesOperados);
 router.get('/pendientes/:centro_salud_id', solicitudController.getSolicitudesPendientesAreaMedica);
 router.get('/pendientes-operados/:centro_salud_id', solicitudController.getSolicitudesPendientesAreaMedicaOperados);
 router.get('/pendientes-administrativas', solicitudController.getSolicitudesPendientesAreaAdministrativa);
