@@ -150,6 +150,51 @@ const MedicoController = {
         }
     },
 
+
+// --- NUEVO MÉTODO: OBTENER MÉDICOS POR CENTRO DE SALUD ---
+
+    getMedicosByCentroSalud: async (req, res) => {
+        const { centro_salud_id } = req.params;
+
+        if (!centro_salud_id) {
+            return res.status(400).json({ error: 'El ID del centro de salud es obligatorio' });
+        }
+
+        try {
+            const sql = `
+                SELECT 
+                    CONCAT_WS(' ', m.primerNombre, m.primerApellido) AS label,
+                    m.id AS value
+                FROM registro_medicos m
+                INNER JOIN users u ON m.usuario_id = u.id
+                WHERE u.centro_salud_id = ? 
+                  AND u.rol_id = 4 
+                  AND m.estatus = 1
+                ORDER BY m.primerNombre ASC, m.primerApellido ASC
+            `;
+
+            const [rows] = await db.query(sql, [centro_salud_id]);
+
+            // Devolvemos el arreglo directamente en el formato [{ label: '...', value: X }]
+            res.json(rows);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    },
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     saveMedico: async (req, res) => {
         const {
             id, cedula, primerNombre, segundoNombre, primerApellido,

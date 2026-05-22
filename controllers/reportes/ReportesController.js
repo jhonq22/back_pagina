@@ -515,20 +515,24 @@ reporteCaterismo: async (req, res) => {
                 });
             }
 
-            // 0. OBTENER DATOS DEL PACIENTE (Edad, Fecha de Nacimiento y Sexo/Género)
+            // 0. OBTENER DATOS DEL PACIENTE Y MÉDICO ASIGNADO
             const [pacienteResult] = await db.query(`
                 SELECT 
                     p.edad, 
                     p.fecha_nacimiento, 
-                    p.sexo AS genero
+                    p.sexo AS genero,
+                    p.telefono_celular, /* <-- AQUÍ AGREGAMOS EL TELÉFONO */
+                    s.medico_id,
+                    TRIM(REPLACE(CONCAT_WS(' ', m.primerNombre, m.segundoNombre, m.primerApellido, m.segundoApellido), '  ', ' ')) AS nombre_medico
                 FROM registrar_solicitud_pacientes s
                 INNER JOIN pacientes p ON s.paciente_id = p.id
+                LEFT JOIN registro_medicos m ON s.medico_id = m.id
                 WHERE s.id = ? LIMIT 1
             `, [solicitud_id]);
 
             const pacienteData = pacienteResult[0] || {};
 
-            // 1. OBTENER EL MAESTRO DE CATETERISMO (Ajustado JOIN de dominancia)
+            // 1. OBTENER EL MAESTRO DE CATETERISMO
             const [cateterismoResult] = await db.query(`
                 SELECT 
                     c.*,
@@ -584,7 +588,13 @@ reporteCaterismo: async (req, res) => {
 
             // 4. CONSTRUCCIÓN DEL JSON FINAL ESTRUCTURADO
             const reporte_cateterismo_completo = {
-                paciente: pacienteData, // <- Inyectamos los datos del paciente aquí
+                medico_asignado: pacienteData.nombre_medico || 'No asignado', 
+                paciente: {
+                    edad: pacienteData.edad,
+                    fecha_nacimiento: pacienteData.fecha_nacimiento,
+                    genero: pacienteData.genero,
+                    telefono_celular: pacienteData.telefono_celular /* <-- AQUÍ LO INYECTAMOS AL JSON */
+                },
                 cateterismo: cateterismoMaster ? {
                     ...cateterismoMaster,
                     arterias: arteriasDetalle
@@ -615,7 +625,6 @@ reporteCaterismo: async (req, res) => {
             });
         }
     },
-
 
 
 

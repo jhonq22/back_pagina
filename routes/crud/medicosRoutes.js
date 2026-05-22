@@ -61,7 +61,16 @@ const handleMulterError = (req, res, next) => {
 // ==========================================
 
 // Listar todos los médicos
+
+
+
 router.get('/medicos', MedicoController.getMedicos);
+
+
+router.get('/centro-salud/:centro_salud_id', MedicoController.getMedicosByCentroSalud);
+
+
+
 
 router.get('/usuario', MedicoController.getMedicoUsuario);
 
