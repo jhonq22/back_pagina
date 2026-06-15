@@ -43,6 +43,8 @@ const cateterismoTerapeuticoConsultaRoutes = require('./routes/consultas/cateter
 const noticiasRoutes = require('./routes/intranet/noticiasRoutes');
 const galeriaRoutes = require('./routes/intranet/galeriaRoutes');
 const baseLegalesRoutes = require('./routes/intranet/baseLegalesRoutes');
+const destacadasRoutes = require('./routes/intranet/destacadasRoutes');
+const publicacionesRoutes = require('./routes/intranet/publicacionesRoutes');
 
 // Importar el Middleware de Autenticación
 const verificarToken = require('./middlewares/authMiddleware');
@@ -63,6 +65,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/noticias', noticiasRoutes);
 app.use('/api/galeria', galeriaRoutes);
 app.use('/api/base-legales', baseLegalesRoutes);
+app.use('/api/destacadas', destacadasRoutes);
+app.use('/api/publicaciones', publicacionesRoutes);
 
 
 // Ruta base de prueba
