@@ -19,7 +19,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
     storage: storage,
-    limits: { fileSize: 1024 * 1024 * 10 } // Límite de 10MB (ajustable según el tamaño de tus documentos)
+    limits: { fileSize: 1024 * 1024 * 8 } // Límite de 8MB
 });
 
 const BaseLegalesController = {

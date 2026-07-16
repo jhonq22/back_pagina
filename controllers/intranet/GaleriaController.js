@@ -12,9 +12,23 @@ const storage = multer.diskStorage({
     }
 });
 
+const fileFilter = (req, file, cb) => {
+    const allowedTypes = [
+        'image/jpeg', 'image/png', 'image/jpg', 'image/webp',
+        'video/mp4', 'video/webm', 'video/ogg',
+        'audio/mpeg', 'audio/mp3'
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(new Error('Tipo de archivo no permitido. Solo se permiten imágenes, videos o audios.'), false);
+    }
+};
+
 const upload = multer({ 
     storage: storage,
-    limits: { fileSize: 1024 * 1024 * 5 } 
+    fileFilter: fileFilter,
+    limits: { fileSize: 1024 * 1024 * 8 } 
 });
 
 const GaleriaController = {

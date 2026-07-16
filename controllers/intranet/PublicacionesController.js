@@ -24,10 +24,11 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-    // Permitir imágenes, videos, pdfs y formatos de oficina comunes
+    // Permitir imágenes, videos, audios, pdfs y formatos de oficina comunes
     const allowedTypes = [
         'image/jpeg', 'image/png', 'image/jpg', 'image/webp',
         'video/mp4', 'video/webm', 'video/ogg',
+        'audio/mpeg', 'audio/mp3',
         'application/pdf', 
         'application/msword', 
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -37,17 +38,17 @@ const fileFilter = (req, file, cb) => {
         'application/x-zip-compressed'
     ];
     
-    if (allowedTypes.includes(file.mimetype) || file.originalname.match(/\.(pdf|doc|docx|xls|xlsx|zip|jpg|jpeg|png|webp|mp4)$/i)) {
+    if (allowedTypes.includes(file.mimetype) || file.originalname.match(/\.(pdf|doc|docx|xls|xlsx|zip|jpg|jpeg|png|webp|mp3|mp4)$/i)) {
         cb(null, true);
     } else {
-        cb(new Error('Tipo de archivo no permitido. Solo se permiten imágenes, videos, PDFs, ZIPs o documentos de Word/Excel.'), false);
+        cb(new Error('Tipo de archivo no permitido. Solo se permiten imágenes, videos, audios, PDFs, ZIPs o documentos de Word/Excel.'), false);
     }
 };
 
 const upload = multer({ 
     storage: storage,
     fileFilter: fileFilter,
-    limits: { fileSize: 1024 * 1024 * 100 } // Aumentado a 100MB por si suben documentos o videos pesados
+    limits: { fileSize: 1024 * 1024 * 8 } 
 });
 
 // ==========================================

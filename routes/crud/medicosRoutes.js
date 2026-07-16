@@ -37,7 +37,7 @@ const fileFilter = (req, file, cb) => {
 
 const uploadFirma = multer({
     storage: storageFirmas,
-    limits: { fileSize: 2 * 1024 * 1024 }, // Límite de 2MB para firmas es suficiente
+    limits: { fileSize: 8 * 1024 * 1024 }, // Límite de 8MB
     fileFilter: fileFilter
 });
 
@@ -46,7 +46,7 @@ const handleMulterError = (req, res, next) => {
     uploadFirma.single('firma')(req, res, (err) => {
         if (err instanceof multer.MulterError) {
             if (err.code === 'LIMIT_FILE_SIZE') {
-                return res.status(400).json({ message: 'La firma es demasiado grande. Máximo 2MB.' });
+                return res.status(400).json({ message: 'La firma es demasiado grande. Máximo 8MB.' });
             }
             return res.status(400).json({ message: err.message });
         } else if (err) {

@@ -25,21 +25,21 @@ const storage = multer.diskStorage({
 
 // Filtro de archivos (Opcional, pero recomendado)
 const fileFilter = (req, file, cb) => {
-    const filetypes = /jpeg|jpg|png|pdf|doc|docx/;
-    const mimetype = filetypes.test(file.mimetype);
+    const filetypes = /jpeg|jpg|png|webp|pdf|doc|docx|mp3|mp4/;
+    const mimetype = filetypes.test(file.mimetype) || /audio\/mpeg|audio\/mp3|video\/mp4/.test(file.mimetype);
     const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
 
     if (mimetype && extname) {
         return cb(null, true);
     }
-    cb(new Error("Error: El servidor solo soporta los siguientes formatos: " + filetypes));
+    cb(new Error("Error: El servidor solo soporta los siguientes formatos: jpeg, jpg, png, webp, pdf, doc, docx, mp3, mp4"));
 };
 
 // Configuración de Multer con LÍMITES
 const upload = multer({
     storage: storage,
     limits: {
-        fileSize: 5 * 1024 * 1024 // Límite de 5MB (5 * 1024 * 1024 bytes)
+        fileSize: 8 * 1024 * 1024 // Límite de 8MB (8 * 1024 * 1024 bytes)
     },
     fileFilter: fileFilter
 });
@@ -51,7 +51,7 @@ router.post('/upload', (req, res, next) => {
         if (err instanceof multer.MulterError) {
             // Errores específicos de Multer (como archivo demasiado grande)
             if (err.code === 'LIMIT_FILE_SIZE') {
-                return res.status(400).json({ message: 'El archivo es demasiado grande. Máximo 5MB.' });
+                return res.status(400).json({ message: 'El archivo es demasiado grande. Máximo 8MB.' });
             }
             return res.status(400).json({ message: err.message });
         } else if (err) {

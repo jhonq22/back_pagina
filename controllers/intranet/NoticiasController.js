@@ -24,24 +24,24 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-    // Agregamos tipos MIME para videos comunes (mp4, webm, ogg) además de las imágenes
+    // Agregamos tipos MIME para videos comunes (mp4, webm, ogg) además de las imágenes y audios
     const allowedTypes = [
         'image/jpeg', 'image/png', 'image/jpg', 'image/webp',
-        'video/mp4', 'video/webm', 'video/ogg'
+        'video/mp4', 'video/webm', 'video/ogg',
+        'audio/mpeg', 'audio/mp3'
     ];
     
     if (allowedTypes.includes(file.mimetype)) {
         cb(null, true);
     } else {
-        cb(new Error('Tipo de archivo no permitido. Solo se permiten imágenes o videos.'), false);
+        cb(new Error('Tipo de archivo no permitido. Solo se permiten imágenes, videos o audios.'), false);
     }
 };
 
 const upload = multer({ 
     storage: storage,
     fileFilter: fileFilter,
-    // AUMENTADO: 50MB porque los videos pesan mucho más (Ajusta este 50 si necesitas más megas)
-    limits: { fileSize: 1024 * 1024 * 50 } 
+    limits: { fileSize: 1024 * 1024 * 8 } 
 });
 
 // ==========================================
